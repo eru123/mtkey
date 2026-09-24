@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out defuse/php-encryption for cross-language vectors
+        uses: actions/checkout@v4
+        with:
+          repository: defuse/php-encryption
+          path: defuse-ref
+
+      - name: Regenerate PHP cross-language test vectors
+        run: php tools/gen-vectors.php defuse-ref/src > tests/Mtkey.Tests/vectors.json
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build
+        run: dotnet build -c Release
+
+      - name: Test (xunit + known-answer + PHP vector suite)
+        run: dotnet test -c Release --no-build
+
+      - name: Self-test the CLI
+        run: dotnet run --project src/Mtkey -- --selftest
