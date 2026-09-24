@@ -24,6 +24,7 @@ internal static class Program
             "--list" => ListMethods(),
             "--run" => RunHeadless(args[1..]),
             "--smoke" => RunSmoke(),
+            "--layoutcheck" => RunLayoutCheck(),
             "--render" => Render(args[1..]),
             "--help" or "-h" or "-?" => PrintHelp(),
             _ => PrintHelp($"Unknown option {args[0]}."),
@@ -36,18 +37,33 @@ internal static class Program
     {
         if (args.Length == 0)
         {
-            Console.Error.WriteLine("usage: mtkey --render <out.png> [demo text]");
+            Console.Error.WriteLine("usage: mtkey --render <out.png> [--method id] [demo text]");
+            return 2;
+        }
+        var png = args[0];
+        string? methodId = null;
+        string? text = null;
+        for (var i = 1; i < args.Length; i++)
+        {
+            if (args[i] == "--method" && i + 1 < args.Length) methodId = args[++i];
+            else text = text == null ? args[i] : text + " " + args[i];
+        }
+        var method = methodId == null ? Registry.All[0] : Registry.Find(methodId);
+        if (method == null)
+        {
+            Console.Error.WriteLine($"No method named '{methodId}'. Try --list.");
             return 2;
         }
         ApplicationConfiguration.Initialize();
-        using var form = new MainForm(args.Length > 1 ? string.Join(' ', args[1..]) : "Attack at dawn!");
+        var form = new MainForm(text ?? "Attack at dawn!");
+        form.SelectMethod(method.Id);
         form.Show();
         Application.DoEvents();
         System.Threading.Thread.Sleep(700);
         Application.DoEvents();
         using var bmp = new Bitmap(form.Width, form.Height);
         form.DrawToBitmap(bmp, new Rectangle(0, 0, form.Width, form.Height));
-        bmp.Save(args[0], System.Drawing.Imaging.ImageFormat.Png);
+        bmp.Save(png, System.Drawing.Imaging.ImageFormat.Png);
         return 0;
     }
 
@@ -160,6 +176,32 @@ internal static class Program
                 direction = CipherDirection.Encode;
                 return false;
         }
+    }
+
+    /// <summary>Opens the UI against every method and fails if any parameter
+    /// row overlaps or any text area gets crushed. Guards the layout
+    /// regression that shipped in 1.0.0.</summary>
+    private static int RunLayoutCheck()
+    {
+        ApplicationConfiguration.Initialize();
+        var failures = 0;
+        using (var form = new MainForm())
+        {
+            form.Show();
+            foreach (var method in Registry.All)
+            {
+                form.SelectMethod(method.Id);
+                form.RunLayoutPass();
+                var defects = form.LayoutDefects();
+                foreach (var d in defects)
+                    Console.WriteLine($"LAYOUT {d}");
+                if (defects.Count > 0) failures++;
+            }
+        }
+        Console.WriteLine(failures == 0
+            ? $"layout: all {Registry.All.Count} methods render without overlaps"
+            : $"layout: {failures} method(s) with layout defects");
+        return failures == 0 ? 0 : 1;
     }
 
     private static int RunSmoke()

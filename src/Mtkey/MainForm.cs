@@ -3,7 +3,9 @@ using Mtkey.Core;
 namespace Mtkey;
 
 /// <summary>The whole workbench: pick a cipher, fill its parameters (roll the
-/// dice for anything random), and watch the output update live.</summary>
+/// dice for anything random), and watch the output update live. The layout is
+/// deliberately plain: fixed-height rows docked top down, no table panels
+/// juggling row styles, inputs anchored left and right.</summary>
 internal sealed class MainForm : Form
 {
     private static readonly Color Ink = Color.FromArgb(31, 33, 40);
@@ -13,15 +15,20 @@ internal sealed class MainForm : Form
     private static readonly Color WarnOrange = Color.FromArgb(154, 52, 18);
     private static readonly Color ErrorRed = Color.FromArgb(185, 28, 28);
     private static readonly Color SoftBg = Color.FromArgb(250, 250, 252);
+    private static readonly Color Line = Color.FromArgb(226, 228, 234);
+
+    private const int LabelWidth = 128;
+    private const int DiceWidth = 34;
+    private const int GlyphWidth = 22;
 
     private readonly SearchDropDown _selector = new() { Dock = DockStyle.Fill };
-    private readonly Button _wikiButton = NewButton("🔗 Learn more");
+    private readonly Button _wikiButton = NewButton("🔗 Wikipedia");
     private readonly Label _blurb = new();
     private readonly Label _learn = new();
     private readonly RadioButton _encodeRadio = NewRadio("Encode");
     private readonly RadioButton _decodeRadio = NewRadio("Decode");
     private readonly Label _oneWayLabel = new();
-    private readonly TableLayoutPanel _paramsTable = new();
+    private readonly Panel _paramsHost = new();
     private readonly TextBox _input = NewMonoBox();
     private readonly TextBox _output = NewMonoBox(readOnly: true);
     private readonly Label _status = new();
@@ -31,25 +38,27 @@ internal sealed class MainForm : Form
     private CipherMethod _method = Registry.All[0];
     private CipherDirection _direction = CipherDirection.Encode;
     private readonly Dictionary<string, Control> _fieldControls = new();
-    private readonly Dictionary<string, Label> _fieldStatus = new();
+    private readonly Dictionary<string, Label> _fieldGlyphs = new();
     private readonly Dictionary<string, FieldSpec> _fieldSpecs = new();
+    private string _plainStatus = "";
 
     /// <param name="demoInput">Pre-fills the input box, used by --demo.</param>
     public MainForm(string? demoInput = null)
     {
         Text = "MTKey";
         StartPosition = FormStartPosition.CenterScreen;
-        MinimumSize = new Size(880, 640);
-        ClientSize = new Size(980, 760);
-        Font = new Font("Segoe UI", 9.75f);
+        Font = new Font("Segoe UI", 9f);
         BackColor = Color.White;
         ForeColor = Ink;
+        MinimumSize = new Size(780, 580);
+        MaximumSize = new Size(1100, 860);
+        ClientSize = new Size(940, 660);
 
         BuildHeader();
         BuildSelectorRow();
         BuildInfoPanel();
         BuildDirectionRow();
-        BuildParamsPanel();
+        BuildParamsHost();
         BuildIoArea();
         BuildStatus();
 
@@ -72,22 +81,22 @@ internal sealed class MainForm : Form
 
     private void BuildHeader()
     {
-        var panel = new Panel { Dock = DockStyle.Top, Height = 66, Padding = new Padding(18, 12, 18, 8) };
+        var panel = new Panel { Dock = DockStyle.Top, Height = 42, Padding = new Padding(14, 8, 14, 4) };
         var title = new Label
         {
             Text = "MTKey",
-            Font = new Font("Segoe UI Semibold", 16f),
+            Font = new Font("Segoe UI Semibold", 13.5f),
             ForeColor = Color.FromArgb(49, 46, 129),
             AutoSize = true,
-            Location = new Point(18, 10),
+            Location = new Point(14, 8),
         };
         var subtitle = new Label
         {
-            Text = "a crypto playground: encode, decode, hash, sign, and actually learn how each one works",
-            Font = new Font("Segoe UI", 9.75f),
+            Text = "a crypto playground: encode, decode, hash, sign, and learn how each one works",
+            Font = new Font("Segoe UI", 8.75f),
             ForeColor = Muted,
             AutoSize = true,
-            Location = new Point(108, 24),
+            Location = new Point(92, 18),
         };
         panel.Controls.Add(title);
         panel.Controls.Add(subtitle);
@@ -96,16 +105,17 @@ internal sealed class MainForm : Form
 
     private void BuildSelectorRow()
     {
-        var panel = new Panel { Dock = DockStyle.Top, Height = 52, Padding = new Padding(18, 8, 18, 8) };
-        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
+        var panel = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(14, 4, 14, 4) };
+        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, Margin = Padding.Empty };
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
+        _selector.Margin = new Padding(0, 2, 6, 2);
         grid.Controls.Add(_selector, 0, 0);
         _wikiButton.AutoSize = false;
         _wikiButton.Dock = DockStyle.Fill;
-        _wikiButton.Margin = new Padding(10, 2, 0, 2);
+        _wikiButton.Margin = new Padding(0, 2, 0, 2);
         _wikiButton.TextAlign = ContentAlignment.MiddleCenter;
-        _wikiButton.Font = new Font("Segoe UI Emoji", 9.75f);
+        _wikiButton.Font = new Font("Segoe UI Emoji", 9f);
         grid.Controls.Add(_wikiButton, 1, 0);
         panel.Controls.Add(grid);
         Controls.Add(panel);
@@ -113,19 +123,19 @@ internal sealed class MainForm : Form
 
     private void BuildInfoPanel()
     {
-        var panel = new Panel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(18, 4, 18, 8), BackColor = SoftBg };
+        var panel = new Panel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(14, 3, 14, 5), BackColor = SoftBg };
         _blurb.Dock = DockStyle.Top;
-        _blurb.Font = new Font("Segoe UI Semibold", 10.5f);
+        _blurb.Font = new Font("Segoe UI Semibold", 9.5f);
         _blurb.ForeColor = Ink;
         _blurb.AutoSize = true;
-        _blurb.Padding = new Padding(0, 4, 0, 0);
+        _blurb.Padding = new Padding(0, 1, 0, 1);
 
         _learn.Dock = DockStyle.Top;
-        _learn.Font = new Font("Segoe UI", 9.25f);
+        _learn.Font = new Font("Segoe UI", 8.75f);
         _learn.ForeColor = Muted;
         _learn.AutoSize = true;
-        _learn.MaximumSize = new Size(940, 0);
-        _learn.Padding = new Padding(0, 4, 0, 6);
+        _learn.MaximumSize = new Size(900, 0);
+        _learn.Padding = new Padding(0, 1, 0, 3);
 
         panel.Controls.Add(_learn);
         panel.Controls.Add(_blurb);
@@ -134,37 +144,31 @@ internal sealed class MainForm : Form
 
     private void BuildDirectionRow()
     {
-        var panel = new Panel { Dock = DockStyle.Top, Height = 40, Padding = new Padding(18, 4, 18, 4) };
+        var panel = new Panel { Dock = DockStyle.Top, Height = 30, Padding = new Padding(14, 2, 14, 0) };
         _encodeRadio.CheckedChanged += (_, _) => DirectionChanged();
         _decodeRadio.CheckedChanged += (_, _) => DirectionChanged();
         _oneWayLabel.AutoSize = true;
         _oneWayLabel.ForeColor = Muted;
-        _oneWayLabel.Padding = new Padding(4, 5, 0, 0);
+        _oneWayLabel.Location = new Point(6, 6);
+        _encodeRadio.Location = new Point(6, 3);
+        _decodeRadio.Location = new Point(112, 3);
         panel.Controls.Add(_encodeRadio);
         panel.Controls.Add(_decodeRadio);
         panel.Controls.Add(_oneWayLabel);
-        _decodeRadio.Location = new Point(140, 8);
-        _encodeRadio.Location = new Point(16, 8);
-        _oneWayLabel.Location = new Point(16, 8);
         Controls.Add(panel);
     }
 
-    private void BuildParamsPanel()
+    private void BuildParamsHost()
     {
-        _paramsTable.Dock = DockStyle.Top;
-        _paramsTable.AutoSize = true;
-        _paramsTable.Padding = new Padding(10, 4, 10, 8);
-        _paramsTable.ColumnCount = 4;
-        _paramsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
-        _paramsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        _paramsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 42));
-        _paramsTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 250));
-        Controls.Add(_paramsTable);
+        _paramsHost.Dock = DockStyle.Top;
+        _paramsHost.AutoSize = true;
+        _paramsHost.Padding = new Padding(14, 2, 14, 2);
+        Controls.Add(_paramsHost);
     }
 
     private void BuildIoArea()
     {
-        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(16, 4, 16, 4) };
+        var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(14, 3, 14, 4), Margin = Padding.Empty };
         grid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         grid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
@@ -175,36 +179,34 @@ internal sealed class MainForm : Form
 
     private Control BuildOneSide(string caption, TextBox box, bool buttons)
     {
-        var side = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0, 6, 0, 6) };
+        var side = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0, 3, 0, 3) };
         side.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         side.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var head = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true, Margin = new Padding(0, 0, 0, 4) };
-        head.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        head.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        var head = new Panel { Dock = DockStyle.Top, Height = 24, Margin = new Padding(0, 0, 0, 3) };
         var label = new Label
         {
             Text = caption,
-            Font = new Font("Segoe UI Semibold", 10.5f),
+            Font = new Font("Segoe UI Semibold", 9.5f),
             ForeColor = Ink,
             AutoSize = true,
-            Margin = new Padding(0, 4, 0, 4),
+            Location = new Point(0, 2),
         };
-        head.Controls.Add(label, 0, 0);
+        head.Controls.Add(label);
 
         if (buttons)
         {
-            var actions = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, Dock = DockStyle.Fill, AutoSize = true };
             var copy = NewButton("📋 Copy");
             var use = NewButton("↩ Use as input");
             var clear = NewButton("🧹 Clear");
             copy.Click += (_, _) => CopyOutput();
             use.Click += (_, _) => { _input.Text = _output.Text; Schedule(); };
             clear.Click += (_, _) => { _input.Clear(); _output.Clear(); Schedule(); };
-            actions.Controls.Add(copy);
-            actions.Controls.Add(use);
-            actions.Controls.Add(clear);
-            head.Controls.Add(actions, 1, 0);
+            // right-aligned right to left: first control ends up rightmost
+            head.Controls.Add(copy);
+            head.Controls.Add(use);
+            head.Controls.Add(clear);
+            PositionButtonRow(head, copy, use, clear);
         }
 
         box.Dock = DockStyle.Fill;
@@ -218,165 +220,188 @@ internal sealed class MainForm : Form
         return side;
     }
 
+    private static void PositionButtonRow(Panel head, params Button[] buttons)
+    {
+        // layout right to left with a fixed 4px gutter, plus a one-shot
+        // relayout when the window width changes
+        void Place()
+        {
+            var x = head.Width;
+            foreach (var b in buttons)
+            {
+                x -= b.Width + 4;
+                b.Location = new Point(x, 0);
+            }
+        }
+        Place();
+        head.Resize += (_, _) => Place();
+    }
+
     private void BuildStatus()
     {
-        var strip = new Panel { Dock = DockStyle.Bottom, Height = 40, BackColor = SoftBg, Padding = new Padding(18, 8, 18, 4) };
+        var strip = new Panel { Dock = DockStyle.Bottom, Height = 30, BackColor = SoftBg, Padding = new Padding(14, 6, 14, 2) };
         _status.Dock = DockStyle.Fill;
-        _status.AutoSize = false;
         _status.AutoEllipsis = true;
         _status.ForeColor = Muted;
-        _status.Text = $"{Registry.All.Count} methods on the bench. Type above to search, everything updates live.";
+        _status.Text = "";
         strip.Controls.Add(_status);
         Controls.Add(strip);
+        _plainStatus = $"{Registry.All.Count} methods on the bench. Type above to search, everything updates live.";
+        ResetStatus();
     }
 
-    // ------------------------------------------------------------ methods
-
-    private void SwitchMethod(CipherMethod method)
-    {
-        _method = method;
-        _selector.SetSelectionSilently(method);
-        _blurb.Text = method.Blurb;
-        _learn.Text = method.Learn;
-        _tips.SetToolTip(_wikiButton, method.WikiUrl);
-        _wikiButton.Text = method.Category == "Defuse PHP" ? "🔗 Project on GitHub" : "🔗 Wikipedia";
-
-        if (method.TwoWay)
-        {
-            _encodeRadio.Visible = true;
-            _decodeRadio.Visible = true;
-            _oneWayLabel.Visible = false;
-            _encodeRadio.Text = method.EncodeLabel;
-            _decodeRadio.Text = method.DecodeLabel;
-            _encodeRadio.Checked = true;
-        }
-        else
-        {
-            _encodeRadio.Visible = false;
-            _decodeRadio.Visible = false;
-            _oneWayLabel.Visible = true;
-            _oneWayLabel.Text = $"🔒 One-way street: {method.EncodeLabel} only. No way back.";
-        }
-
-        RebuildParams();
-        _direction = CipherDirection.Encode;
-        Schedule();
-    }
+    // ------------------------------------------------------------ params
 
     private void RebuildParams()
     {
         _fieldControls.Clear();
-        _fieldStatus.Clear();
+        _fieldGlyphs.Clear();
         _fieldSpecs.Clear();
-        _paramsTable.SuspendLayout();
-        _paramsTable.Controls.Clear();
-        _paramsTable.RowCount = 0;
-        _paramsTable.RowStyles.Clear();
+        _paramsHost.SuspendLayout();
 
+        var oldRows = _paramsHost.Controls.Cast<Control>().ToList();
+        _paramsHost.Controls.Clear();
+        foreach (var row in oldRows) row.Dispose();
+
+        // Rows are docked Top, so add them in reverse to keep reading order.
+        var rows = new List<Control>();
         foreach (var spec in _method.Fields)
+            rows.Add(BuildFieldRow(spec));
+
+        if (_method.Fields.Any(f => f.Generator != null))
         {
-            _fieldSpecs[spec.Name] = spec;
-            var row = _paramsTable.RowCount;
-            _paramsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, spec.Kind == FieldKind.Multiline ? 96 : 40));
-            _paramsTable.RowCount = row + 1;
-
-            var label = new Label
+            rows.Add(new Panel
             {
-                Text = spec.Label,
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                ForeColor = Ink,
-            };
-            _tips.SetToolTip(label, spec.Hint ?? spec.Label);
-
-            Control input = spec.Kind switch
-            {
-                FieldKind.Dropdown => new ComboBox
+                Dock = DockStyle.Top,
+                Height = 24,
+                Controls =
                 {
-                    DropDownStyle = ComboBoxStyle.DropDownList,
-                    FlatStyle = FlatStyle.Flat,
-                    Dock = DockStyle.Fill,
+                    new Label
+                    {
+                        Text = "Tip: 🎲 rolls a fresh random value. On RSA it mints the public and private key together.",
+                        Dock = DockStyle.Fill,
+                        TextAlign = ContentAlignment.MiddleLeft,
+                        ForeColor = Muted,
+                        Font = new Font("Segoe UI", 8.25f),
+                    },
                 },
-                FieldKind.Number => new NumericUpDown
-                {
-                    Dock = DockStyle.Fill,
-                    Minimum = spec.Min ?? 0,
-                    Maximum = spec.Max ?? 1_000_000,
-                },
-                FieldKind.Multiline => NewMonoBox(),
-                _ => NewMonoBox(),
-            };
+            });
+        }
 
-            switch (input)
+        foreach (var row in ((IEnumerable<Control>)rows).Reverse())
+            _paramsHost.Controls.Add(row);
+
+        _paramsHost.ResumeLayout(true);
+    }
+
+    private Control BuildFieldRow(FieldSpec spec)
+    {
+        _fieldSpecs[spec.Name] = spec;
+        var multiline = spec.Kind == FieldKind.Multiline;
+        var row = new Panel { Dock = DockStyle.Top, Height = multiline ? 84 : 32, Padding = new Padding(0, 2, 0, 2) };
+
+        var label = new Label
+        {
+            Text = spec.Label,
+            Font = new Font("Segoe UI", 9f),
+            ForeColor = Ink,
+            AutoSize = false,
+            Bounds = new Rectangle(0, multiline ? 3 : 6, LabelWidth, 20),
+            TextAlign = ContentAlignment.MiddleLeft,
+        };
+        _tips.SetToolTip(label, spec.Hint ?? spec.Label);
+        row.Controls.Add(label);
+
+        Control input = spec.Kind switch
+        {
+            FieldKind.Dropdown => new ComboBox
             {
-                case TextBox tb:
-                    tb.Dock = DockStyle.Fill;
-                    tb.PlaceholderText = spec.Placeholder;
-                    if (spec.Secret && spec.Kind != FieldKind.Multiline) tb.UseSystemPasswordChar = true;
-                    tb.TextChanged += (_, _) => Schedule();
-                    break;
-                case ComboBox combo:
-                    combo.Items.AddRange(spec.Options ?? Array.Empty<object>());
-                    if (spec.Default != null) combo.SelectedItem = spec.Default;
-                    else if (combo.Items.Count > 0) combo.SelectedIndex = 0;
-                    combo.SelectedIndexChanged += (_, _) => Schedule();
-                    break;
-                case NumericUpDown num:
-                    if (int.TryParse(spec.Default, out var d)) num.Value = d;
-                    num.ValueChanged += (_, _) => Schedule();
-                    break;
-            }
-            _fieldControls[spec.Name] = input;
-            if (spec.Hint != null) _tips.SetToolTip(input, spec.Hint);
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9f),
+            },
+            FieldKind.Number => new NumericUpDown
+            {
+                Font = new Font("Segoe UI", 9f),
+                Minimum = spec.Min ?? 0,
+                Maximum = spec.Max ?? 1_000_000,
+            },
+            FieldKind.Multiline => NewMonoBox(),
+            _ => NewMonoBox(),
+        };
 
-            var dice = new Button
+        var left = LabelWidth + 4;
+        var widthReserve = (spec.Generator != null ? DiceWidth : 0) + GlyphWidth + 4;
+        input.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        input.Bounds = new Rectangle(left, multiline ? 2 : 4,
+            Math.Max(60, row.ClientSize.Width - left - widthReserve - row.Padding.Horizontal),
+            multiline ? 80 : 24);
+        switch (input)
+        {
+            case TextBox tb:
+                tb.PlaceholderText = spec.Placeholder;
+                if (spec.Secret && !multiline) tb.UseSystemPasswordChar = true;
+                tb.TextChanged += (_, _) => Schedule();
+                break;
+            case ComboBox combo:
+                combo.Items.AddRange(spec.Options ?? Array.Empty<object>());
+                if (spec.Default != null) combo.SelectedItem = spec.Default;
+                else if (combo.Items.Count > 0) combo.SelectedIndex = 0;
+                combo.SelectedIndexChanged += (_, _) => Schedule();
+                break;
+            case NumericUpDown num:
+                if (int.TryParse(spec.Default, out var d)) num.Value = d;
+                num.ValueChanged += (_, _) => Schedule();
+                break;
+        }
+        _fieldControls[spec.Name] = input;
+        if (spec.Hint != null) _tips.SetToolTip(input, spec.Hint);
+
+        Button? dice = null;
+        if (spec.Generator != null)
+        {
+            dice = new Button
             {
                 Text = "🎲",
-                Dock = DockStyle.Fill,
                 FlatStyle = FlatStyle.Flat,
                 Cursor = Cursors.Hand,
-                Font = new Font("Segoe UI Emoji", 11f),
-                Margin = new Padding(4, 4, 4, 4),
+                Font = new Font("Segoe UI Emoji", 9.5f),
+                Anchor = AnchorStyles.Right,
+                Bounds = new Rectangle(row.ClientSize.Width - DiceWidth - GlyphWidth - 4, multiline ? 0 : 2, DiceWidth - 6, 26),
+                Padding = new Padding(0),
+                Margin = Padding.Empty,
             };
             _tips.SetToolTip(dice, "Roll something random for me");
             dice.Click += (_, _) => Roll(spec.Name);
-
-            var status = new Label
-            {
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                ForeColor = Muted,
-                AutoEllipsis = true,
-                Padding = new Padding(6, 0, 0, 0),
-            };
-            _fieldStatus[spec.Name] = status;
-
-            _paramsTable.Controls.Add(label, 0, row);
-            _paramsTable.Controls.Add(input, 1, row);
-            _paramsTable.Controls.Add(spec.Generator != null ? dice : new Label(), 2, row);
-            _paramsTable.Controls.Add(status, 3, row);
+            row.Controls.Add(dice);
         }
 
-        // A gentle nudge for methods whose required fields sit empty.
-        if (_method.Fields.Any(f => f.Generator != null))
+        var glyph = new Label
         {
-            var hint = new Label
-            {
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                ForeColor = Muted,
-                Text = "Tip: 🎲 fills a field with a fresh random value. For RSA it mints the public and private key together.",
-                Padding = new Padding(0, 2, 0, 2),
-            };
-            var row = _paramsTable.RowCount;
-            _paramsTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
-            _paramsTable.RowCount = row + 1;
-            _paramsTable.SetColumnSpan(hint, 4);
-            _paramsTable.Controls.Add(hint, 0, row);
-        }
+            Font = new Font("Segoe UI", 9.5f),
+            ForeColor = NoteGreen,
+            Anchor = AnchorStyles.Right,
+            Bounds = new Rectangle(row.ClientSize.Width - GlyphWidth, multiline ? 3 : 7, GlyphWidth, 18),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Text = "",
+        };
+        _fieldGlyphs[spec.Name] = glyph;
+        row.Controls.Add(glyph);
 
-        _paramsTable.ResumeLayout(true);
+        // keep the input stretching and the right-side pieces pinned on resize
+        row.Resize += (_, _) =>
+        {
+            input.Width = Math.Max(60, row.ClientSize.Width - left - widthReserve - row.Padding.Horizontal);
+            if (dice != null)
+                dice.Bounds = new Rectangle(row.ClientSize.Width - DiceWidth - GlyphWidth - 4, multiline ? 0 : 2, DiceWidth - 6, 26);
+            glyph.Bounds = new Rectangle(row.ClientSize.Width - GlyphWidth, multiline ? 3 : 7, GlyphWidth, 18);
+        };
+
+        return row;
     }
+
+    // The dice button created in BuildFieldRow is captured by that row's
+    // resize handler, so the anchored pieces stay pinned when the window
+    // changes size.
 
     private void Roll(string fieldName)
     {
@@ -401,6 +426,7 @@ internal sealed class MainForm : Form
                 }
             }
             ValidateLive();
+            Schedule();
         }
         catch (CipherException ex)
         {
@@ -422,6 +448,92 @@ internal sealed class MainForm : Form
             };
         }
         return values;
+    }
+
+    // ------------------------------------------------------------ engine
+
+    private void SwitchMethod(CipherMethod method)
+    {
+        _method = method;
+        _selector.SetSelectionSilently(method);
+        _blurb.Text = method.Blurb;
+        _learn.Text = method.Learn;
+        _tips.SetToolTip(_wikiButton, method.WikiUrl);
+        _wikiButton.Text = method.Category == "Defuse PHP" ? "🔗 Project" : "🔗 Wikipedia";
+
+        if (method.TwoWay)
+        {
+            _encodeRadio.Visible = true;
+            _decodeRadio.Visible = true;
+            _oneWayLabel.Visible = false;
+            _encodeRadio.Text = method.EncodeLabel;
+            _decodeRadio.Text = method.DecodeLabel;
+            _encodeRadio.Checked = true;
+        }
+        else
+        {
+            _encodeRadio.Visible = false;
+            _decodeRadio.Visible = false;
+            _oneWayLabel.Visible = true;
+            _oneWayLabel.Text = $"🔒 One-way street: {method.EncodeLabel} only. No way back.";
+        }
+
+        RebuildParams();
+        _direction = CipherDirection.Encode;
+        Schedule();
+    }
+
+    /// <summary>Used by --render to photograph a specific method.</summary>
+    internal void SelectMethod(string id)
+    {
+        var method = Registry.Find(id);
+        if (method != null) SwitchMethod(method);
+    }
+
+    /// <summary>Walks the visible layout and reports anything that overlaps,
+    /// sits outside the window or collapses to nothing. Backs the
+    /// --layoutcheck mode so broken rows never ship again.</summary>
+    internal List<string> LayoutDefects()
+    {
+        var defects = new List<string>();
+        var client = ClientRectangle;
+
+        foreach (Control row in _paramsHost.Controls)
+        {
+            var boxes = new List<Rectangle>();
+            foreach (Control child in row.Controls)
+                boxes.Add(child.Bounds);
+            for (var i = 0; i < boxes.Count; i++)
+                for (var j = i + 1; j < boxes.Count; j++)
+                    if (boxes[i].IntersectsWith(boxes[j]))
+                        defects.Add($"{_method.Id}: '{row.Controls[i].Name ?? row.Controls[i].Text}' overlaps " +
+                                    $"'{row.Controls[j].Name ?? row.Controls[j].Text}'");
+            foreach (Control child in row.Controls)
+            {
+                if (child.Width <= 1)
+                    defects.Add($"{_method.Id}: a control in a parameter row collapsed to width {child.Width}");
+            }
+        }
+
+        if (_input.Height < 36) defects.Add($"{_method.Id}: input box crushed to {_input.Height}px");
+        if (_output.Height < 36) defects.Add($"{_method.Id}: output box crushed to {_output.Height}px");
+
+        foreach (var control in new Control[] { _selector, _input, _output, _status })
+        {
+            var screen = control.Parent!.RectangleToScreen(control.Bounds);
+            var form = RectangleToScreen(client);
+            if (!form.Contains(screen.Location) || !form.Contains(screen.Right, screen.Bottom))
+                defects.Add($"{_method.Id}: {control.GetType().Name} falls outside the window");
+        }
+
+        return defects;
+    }
+
+    internal void RunLayoutPass()
+    {
+        // forces a full layout pass so measured sizes are final
+        PerformLayout();
+        Application.DoEvents();
     }
 
     private void DirectionChanged()
@@ -464,8 +576,6 @@ internal sealed class MainForm : Form
         }
     }
 
-    // ------------------------------------------------------------ engine
-
     private void Schedule()
     {
         _debounce.Stop();
@@ -477,11 +587,11 @@ internal sealed class MainForm : Form
         var validation = _method.ValidateFields(CollectFields());
         foreach (var (field, verdict) in validation.Fields)
         {
-            if (_fieldStatus.TryGetValue(field, out var label))
-            {
-                label.Text = verdict.Certain ? (verdict.Ok ? "✔ " : "✖ ") + verdict.Message : "";
-                label.ForeColor = verdict.Ok ? NoteGreen : ErrorRed;
-            }
+            if (!_fieldGlyphs.TryGetValue(field, out var glyph)) continue;
+            glyph.Text = verdict.Certain ? (verdict.Ok ? "✔" : "✖") : "";
+            glyph.ForeColor = verdict.Ok ? NoteGreen : ErrorRed;
+            if (verdict.Certain)
+                _tips.SetToolTip(glyph, verdict.Message);
         }
         if (validation.Overall.Length > 0)
         {
@@ -492,10 +602,9 @@ internal sealed class MainForm : Form
 
     private void ProcessNow()
     {
-        var input = _input.Text;
         try
         {
-            var result = _method.Process(new CipherRequest(_direction, input, CollectFields()));
+            var result = _method.Process(new CipherRequest(_direction, _input.Text, CollectFields()));
             _output.Text = result.Output;
             if (result.Warning != null) ShowStatus(result.Warning, WarnOrange);
             else if (result.Note != null) ShowStatus(result.Note, NoteGreen);
@@ -518,8 +627,7 @@ internal sealed class MainForm : Form
         _status.ForeColor = color;
     }
 
-    private void ResetStatus() =>
-        ShowStatus($"{Registry.All.Count} methods on the bench. Type above to search, everything updates live.", Muted);
+    private void ResetStatus() => ShowStatus(_plainStatus, Muted);
 
     // ------------------------------------------------------------ factory
 
@@ -531,8 +639,9 @@ internal sealed class MainForm : Form
         BackColor = Color.White,
         ForeColor = Accent,
         Cursor = Cursors.Hand,
-        Font = new Font("Segoe UI", 9.5f),
-        Padding = new Padding(8, 4, 8, 4),
+        Font = new Font("Segoe UI Emoji", 8.75f),
+        Padding = new Padding(6, 2, 6, 2),
+        Margin = Padding.Empty,
     };
 
     private static RadioButton NewRadio(string text) => new()
@@ -545,7 +654,7 @@ internal sealed class MainForm : Form
 
     private static TextBox NewMonoBox(bool readOnly = false) => new()
     {
-        Font = new Font("Consolas", 10f),
+        Font = new Font("Consolas", 9.5f),
         ReadOnly = readOnly,
         BackColor = readOnly ? SoftBg : Color.White,
         BorderStyle = BorderStyle.FixedSingle,

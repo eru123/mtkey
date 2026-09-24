@@ -33,3 +33,6 @@ jobs:
 
       - name: Self-test the CLI
         run: dotnet run --project src/Mtkey -- --selftest
+
+      - name: Layout check every method
+        run: dotnet run --project src/Mtkey -- --layoutcheck
