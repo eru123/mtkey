@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mtkey.Core\Mtkey.Core.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>mtkey</AssemblyName>
+    <Product>MTKey</Product>
+    <Version>1.0.0</Version>
+    <Authors>eru123</Authors>
+    <Description>A cipher workbench: encode, decode, hash, sign and learn, with defuse/php-encryption interop.</Description>
+  </PropertyGroup>
+
+</Project>
