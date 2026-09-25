@@ -44,6 +44,11 @@ internal sealed class MainForm : Form
     private readonly Button _useButton = NewButton("Use as Input");
     private readonly Button _clearButton = NewButton("Clear");
 
+    private MenuStrip _menu = null!;
+    private Panel _toolBar = null!;
+    private Panel _blurbBar = null!;
+    private TableLayoutPanel _ioGrid = null!;
+
     private readonly StatusStrip _statusStrip = new();
     private readonly ToolStripStatusLabel _statusLabel = new() { Spring = true };
     private readonly ToolStripStatusLabel _countLabel = new();
@@ -74,6 +79,17 @@ internal sealed class MainForm : Form
         BuildParamsGroup();
         BuildIoArea();
         BuildStatusBar();
+
+        // WinForms dock layout walks the children from the END of the
+        // collection inward: the highest index docks first. The visual order
+        // top to bottom is therefore the reverse of the index order, so pin
+        // it explicitly: menu, toolbar, blurb, parameters, io, status bar.
+        Controls.SetChildIndex(_ioGrid, 0);
+        Controls.SetChildIndex(_statusStrip, 1);
+        Controls.SetChildIndex(_paramsGroup, 2);
+        Controls.SetChildIndex(_blurbBar, 3);
+        Controls.SetChildIndex(_toolBar, 4);
+        Controls.SetChildIndex(_menu, 5);
 
         _selector.MethodPicked += m => SwitchMethod(m);
         _wikiButton.Click += (_, _) => OpenWiki();
@@ -114,12 +130,13 @@ internal sealed class MainForm : Form
         help.DropDownItems.Add(new ToolStripSeparator());
         help.DropDownItems.Add(new ToolStripMenuItem("&About MTKey...", null,
             (_, _) => MessageBox.Show(this,
-                "MTKey 1.0.2\nA cipher workbench: encode, decode, hash, sign, and learn.\n" +
+                "MTKey 1.0.3\nA cipher workbench: encode, decode, hash, sign, and learn.\n" +
                 $"{Registry.All.Count} methods. MIT licensed.\nhttps://github.com/eru123/mtkey",
                 "About MTKey", MessageBoxButtons.OK, MessageBoxIcon.Information)));
         menu.Items.Add(file);
         menu.Items.Add(help);
         MainMenuStrip = menu;
+        _menu = menu;
         Controls.Add(menu);
     }
 
@@ -133,18 +150,21 @@ internal sealed class MainForm : Form
         bar.Controls.Add(_decodeRadio);
         bar.Controls.Add(_oneWayLabel);
 
-        // absolute placement on every resize; no anchors fighting manual math
+        // absolute placement on every resize; no anchors fighting manual math.
+        // Every control is centered vertically in the row.
         void Place()
         {
             var w = bar.ClientSize.Width;
-            _selector.Bounds = new Rectangle(0, 2, Math.Max(120, w - 430), 23);
-            _wikiButton.Location = new Point(w - 410, 2);
-            _helpButton.Location = new Point(w - 326, 2);
-            _encodeRadio.Location = new Point(w - 268, 4);
-            _decodeRadio.Location = new Point(w - 196, 4);
-            _oneWayLabel.Location = new Point(w - 292, 7);
+            void Put(Control c, int x) => c.Location = new Point(x, Math.Max(0, (bar.ClientSize.Height - c.Height) / 2));
+            _selector.Bounds = new Rectangle(0, Math.Max(0, (bar.ClientSize.Height - 23) / 2), Math.Max(120, w - 430), 23);
+            Put(_wikiButton, w - 410);
+            Put(_helpButton, w - 326);
+            Put(_encodeRadio, w - 268);
+            Put(_decodeRadio, w - 196);
+            Put(_oneWayLabel, w - 292);
         }
         bar.Resize += (_, _) => Place();
+        _toolBar = bar;
         Controls.Add(bar);
     }
 
@@ -153,6 +173,7 @@ internal sealed class MainForm : Form
         var bar = new Panel { Dock = DockStyle.Top, Height = 18, Padding = new Padding(8, 1, 8, 1) };
         bar.Controls.Add(_blurb);
         _tips.SetToolTip(_blurb, "Click for the full explanation");
+        _blurbBar = bar;
         Controls.Add(bar);
     }
 
@@ -179,7 +200,7 @@ internal sealed class MainForm : Form
         grid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
         _inputGroup.Dock = DockStyle.Fill;
-        _inputGroup.Padding = new Padding(8, 2, 8, 6);
+        _inputGroup.Padding = new Padding(8, 4, 8, 6);
         _input.Dock = DockStyle.Fill;
         _input.Multiline = true;
         _input.ScrollBars = ScrollBars.Both;
@@ -187,21 +208,23 @@ internal sealed class MainForm : Form
         _input.AcceptsTab = true;
         _inputGroup.Controls.Add(_input);
 
+        // the action buttons live on their own line under the group caption,
+        // right aligned with a small inset so nothing touches the border
         _outputGroup.Dock = DockStyle.Fill;
-        _outputGroup.Padding = new Padding(8, 2, 8, 6);
-        var actions = new Panel { Dock = DockStyle.Top, Height = 25, Margin = new Padding(0, 0, 0, 2) };
+        _outputGroup.Padding = new Padding(8, 4, 8, 6);
+        var actions = new Panel { Dock = DockStyle.Top, Height = 27, Margin = new Padding(0, 0, 0, 3) };
         var buttons = new[] { _clearButton, _useButton, _copyButton };
         actions.Controls.AddRange(buttons);
-        void Place()
+        void PlaceActions()
         {
-            var x = actions.ClientSize.Width;
+            var x = actions.ClientSize.Width - 2;
             foreach (var b in buttons)
             {
                 x -= b.Width + 4;
-                b.Location = new Point(x, 1);
+                b.Location = new Point(x, (actions.ClientSize.Height - b.Height) / 2);
             }
         }
-        actions.Resize += (_, _) => Place();
+        actions.Resize += (_, _) => PlaceActions();
         _outputGroup.Controls.Add(actions);
         _output.Dock = DockStyle.Fill;
         _output.Multiline = true;
@@ -213,11 +236,8 @@ internal sealed class MainForm : Form
 
         grid.Controls.Add(_inputGroup, 0, 0);
         grid.Controls.Add(_outputGroup, 0, 1);
+        _ioGrid = grid;
         Controls.Add(grid);
-        // dock layout walks children from the end of the collection inward,
-        // so the fill area must sit at index 0 to claim only the leftover
-        // space below every top-docked row
-        Controls.SetChildIndex(grid, 0);
     }
 
     private void BuildStatusBar()
@@ -228,6 +248,16 @@ internal sealed class MainForm : Form
         _countLabel.BorderSides = ToolStripStatusLabelBorderSides.Left;
         _countLabel.BorderStyle = Border3DStyle.Etched;
         _statusStrip.SizingGrip = true;
+        _statusStrip.Font = new Font(SystemFonts.MessageBoxFont.FontFamily, 8.25f);
+        _statusStrip.BackColor = Color.FromArgb(237, 236, 232);
+        _statusStrip.Padding = new Padding(8, 2, 8, 2);
+        // a crisp rule above the bar, the way classic status panels are cut
+        // off from the content area
+        _statusStrip.Paint += (s, e) =>
+        {
+            using var pen = new Pen(SystemColors.ControlDark);
+            e.Graphics.DrawLine(pen, 0, 0, _statusStrip.Width, 0);
+        };
         Controls.Add(_statusStrip);
         _statusLabel.Text = "Ready.";
     }
@@ -529,6 +559,11 @@ internal sealed class MainForm : Form
         {
             ShowStatus(ex.Message, ErrorRed);
         }
+        catch (System.Text.DecoderFallbackException)
+        {
+            ShowStatus("The result is binary bytes, not valid text, so it cannot be shown as characters. " +
+                       "The hex methods will show you every byte instead.", ErrorRed);
+        }
         catch (Exception ex)
         {
             ShowStatus($"Unexpected: {ex.Message}", ErrorRed);
@@ -582,6 +617,7 @@ internal sealed class MainForm : Form
     internal List<string> LayoutDefects()
     {
         var defects = new List<string>();
+        int previousRectangleBottom = 0;
 
         foreach (Control row in _paramsGroup.Controls)
         {
@@ -616,6 +652,23 @@ internal sealed class MainForm : Form
                     ScreenBounds(groups[i]).IntersectsWith(Rectangle.Inflate(ScreenBounds(groups[j]), -2, -2)))
                     defects.Add($"{_method.Id}: {groups[i].Text} and {groups[j].Text} group boxes intersect " +
                                 $"[{ScreenBounds(groups[i])}] vs [{ScreenBounds(groups[j])}]");
+
+        // stacking order: menu, toolbar, blurb, parameters, io, status bar
+        var order = new (Control c, string Name)[]
+        {
+            (_menu, "menu"), (_toolBar, "toolbar"), (_blurbBar, "blurb"),
+            (_paramsGroup, "parameters"), (_ioGrid, "io"), (_statusStrip, "status"),
+        };
+        Control? previous = null;
+        foreach (var (control, name) in order)
+        {
+            if (!control.Visible) continue;
+            var top = control.Parent!.RectangleToScreen(control.Bounds).Top;
+            if (previous != null && top < previousRectangleBottom - 1)
+                defects.Add($"{_method.Id}: {name} row starts at y={top}, above the previous block (bottom {previousRectangleBottom})");
+            previous = control;
+            previousRectangleBottom = control.Parent!.RectangleToScreen(control.Bounds).Bottom;
+        }
 
         foreach (var control in new Control[] { _selector, _input, _output, _statusStrip })
         {
@@ -654,5 +707,6 @@ internal sealed class MainForm : Form
     {
         Font = new Font("Consolas", 9f),
         ReadOnly = readOnly,
+        BackColor = Color.White,   // read-only boxes stay white, single native frame
     };
 }
