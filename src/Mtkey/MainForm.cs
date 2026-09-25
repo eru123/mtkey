@@ -21,12 +21,6 @@ internal sealed class MainForm : Form
     private readonly Button _helpButton = NewButton("?");
     private readonly RadioButton _encodeRadio = new() { Text = "Encode", AutoSize = true };
     private readonly RadioButton _decodeRadio = new() { Text = "Decode", AutoSize = true };
-    private readonly Label _oneWayLabel = new()
-    {
-        Text = "One-way: hash only",
-        AutoSize = true,
-        ForeColor = SystemColors.GrayText,
-    };
     private readonly Label _blurb = new()
     {
         Dock = DockStyle.Fill,
@@ -48,6 +42,7 @@ internal sealed class MainForm : Form
     private Panel _toolBar = null!;
     private Panel _blurbBar = null!;
     private TableLayoutPanel _ioGrid = null!;
+    private Action? _relayoutToolbar;
 
     private readonly StatusStrip _statusStrip = new();
     private readonly ToolStripStatusLabel _statusLabel = new() { Spring = true };
@@ -132,7 +127,7 @@ internal sealed class MainForm : Form
         help.DropDownItems.Add(new ToolStripSeparator());
         help.DropDownItems.Add(new ToolStripMenuItem("&About MTKey...", null,
             (_, _) => MessageBox.Show(this,
-                "MTKey 1.0.4\nA cipher workbench: encode, decode, hash, sign, and learn.\n" +
+                "MTKey 1.0.5\nA cipher workbench: encode, decode, hash, sign, and learn.\n" +
                 $"{Registry.All.Count} methods. MIT licensed.\nhttps://github.com/eru123/mtkey",
                 "About MTKey", MessageBoxButtons.OK, MessageBoxIcon.Information)));
         menu.Items.Add(file);
@@ -144,29 +139,74 @@ internal sealed class MainForm : Form
 
     private void BuildToolbar()
     {
-        var bar = new Panel { Dock = DockStyle.Top, Height = 28, Padding = new Padding(6, 2, 6, 2) };
+        var bar = new Panel { Dock = DockStyle.Top, Height = 28, Padding = new Padding(8, 2, 8, 2) };
         bar.Controls.Add(_selector);
         bar.Controls.Add(_wikiButton);
         bar.Controls.Add(_helpButton);
         bar.Controls.Add(_encodeRadio);
         bar.Controls.Add(_decodeRadio);
-        bar.Controls.Add(_oneWayLabel);
 
-        // absolute placement on every resize; no anchors fighting manual math.
-        // Every control is centered vertically in the row; the selector gets
-        // a small left inset so it does not hug the window edge.
+        const int gap = 8;
+
+        // A left-to-right flow: the selector stretches to whatever is left,
+        // every other control keeps its measured width, and the row wraps
+        // onto a second line rather than squeeze if the window gets too
+        // narrow for a usable search box. No offsets from the right edge,
+        // so long mode labels ("Generate / wrap", "Decode from hex")
+        // can never collide with anything or run past the border.
         void Place()
         {
-            var w = bar.ClientSize.Width;
-            void Put(Control c, int x) => c.Location = new Point(x, Math.Max(0, (bar.ClientSize.Height - c.Height) / 2));
-            _selector.Bounds = new Rectangle(8, Math.Max(0, (bar.ClientSize.Height - 23) / 2), Math.Max(120, w - 430 - 8), 23);
-            Put(_wikiButton, w - 410);
-            Put(_helpButton, w - 326);
-            Put(_encodeRadio, w - 268);
-            Put(_decodeRadio, w - 196);
-            Put(_oneWayLabel, w - 292);
+            var avail = bar.ClientSize.Width - bar.Padding.Horizontal;
+            var modes = _encodeRadio.Visible
+                ? 12 + _encodeRadio.Width + gap + _decodeRadio.Width
+                : 0;
+            var fixedWidth = _wikiButton.Width + gap + _helpButton.Width + modes;
+            var singleLine = avail - fixedWidth >= 200;
+            var wanted = singleLine ? 28 : 54;
+            if (bar.Height != wanted)
+            {
+                bar.Height = wanted;   // resize re-fires Place at the new size
+                return;
+            }
+
+            Point At(Control c, int x) =>
+                new(x, Math.Max(0, (bar.ClientSize.Height - c.Height) / 2));
+
+            if (singleLine)
+            {
+                var x = bar.Padding.Left;
+                _selector.Bounds = new Rectangle(x, At(_selector, 0).Y, avail - fixedWidth, 23);
+                x += _selector.Width + gap;
+                _wikiButton.Location = At(_wikiButton, x);
+                x += _wikiButton.Width + gap;
+                _helpButton.Location = At(_helpButton, x);
+                x += _helpButton.Width + 12;
+                if (_encodeRadio.Visible)
+                {
+                    _encodeRadio.Location = At(_encodeRadio, x);
+                    x += _encodeRadio.Width + gap;
+                    _decodeRadio.Location = At(_decodeRadio, x);
+                }
+            }
+            else
+            {
+                _selector.Bounds = new Rectangle(bar.Padding.Left, 2, avail, 23);
+                var x = bar.Padding.Left;
+                var y = 29;
+                _wikiButton.Location = At(_wikiButton, x) with { Y = y };
+                x += _wikiButton.Width + gap;
+                _helpButton.Location = At(_helpButton, x) with { Y = y };
+                x += _helpButton.Width + 12;
+                if (_encodeRadio.Visible)
+                {
+                    _encodeRadio.Location = At(_encodeRadio, x) with { Y = y };
+                    x += _encodeRadio.Width + gap;
+                    _decodeRadio.Location = At(_decodeRadio, x) with { Y = y };
+                }
+            }
         }
         bar.Resize += (_, _) => Place();
+        _relayoutToolbar = Place;
         _toolBar = bar;
         Controls.Add(bar);
     }
@@ -436,7 +476,11 @@ internal sealed class MainForm : Form
     {
         _method = method;
         _selector.SetSelectionSilently(method);
-        _blurb.Text = method.Blurb;
+        // the hint row doubles as the one-way notice, so the toolbar itself
+        // never carries variable-width text
+        _blurb.Text = method.TwoWay
+            ? method.Blurb
+            : $"One-way street: {method.EncodeLabel} only, no way back. {method.Blurb}";
         _tips.SetToolTip(_blurb, method.Blurb + "\n\nClick for the full explanation.");
         _tips.SetToolTip(_wikiButton, method.WikiUrl);
         _wikiButton.Text = method.Category == "Defuse PHP" ? "GitHub" : "Wikipedia";
@@ -445,7 +489,6 @@ internal sealed class MainForm : Form
         {
             _encodeRadio.Visible = true;
             _decodeRadio.Visible = true;
-            _oneWayLabel.Visible = false;
             _encodeRadio.Text = method.EncodeLabel;
             _decodeRadio.Text = method.DecodeLabel;
             _encodeRadio.Checked = true;
@@ -454,11 +497,10 @@ internal sealed class MainForm : Form
         {
             _encodeRadio.Visible = false;
             _decodeRadio.Visible = false;
-            _oneWayLabel.Visible = true;
-            _oneWayLabel.Text = $"One-way: {method.EncodeLabel} only";
         }
 
         RebuildParams();
+        _relayoutToolbar?.Invoke();   // label and visibility changes resize the row
         _direction = CipherDirection.Encode;
         Schedule();
     }
@@ -662,6 +704,20 @@ internal sealed class MainForm : Form
                     ScreenBounds(groups[i]).IntersectsWith(Rectangle.Inflate(ScreenBounds(groups[j]), -2, -2)))
                     defects.Add($"{_method.Id}: {groups[i].Text} and {groups[j].Text} group boxes intersect " +
                                 $"[{ScreenBounds(groups[i])}] vs [{ScreenBounds(groups[j])}]");
+
+        // toolbar: nothing may overlap, nothing may bleed past the window
+        var toolbarControls = _toolBar.Controls.Cast<Control>().Where(c => c.Visible).ToList();
+        for (var i = 0; i < toolbarControls.Count; i++)
+            for (var j = i + 1; j < toolbarControls.Count; j++)
+                if (toolbarControls[i].Bounds.IntersectsWith(toolbarControls[j].Bounds))
+                    defects.Add($"{_method.Id}: toolbar '{toolbarControls[i].Text}' overlaps '{toolbarControls[j].Text}'");
+        var windowRect = Rectangle.Inflate(RectangleToScreen(ClientRectangle), 1, 1);
+        foreach (var c in toolbarControls)
+        {
+            var s = _toolBar.RectangleToScreen(c.Bounds);
+            if (!windowRect.Contains(s.Location) || !windowRect.Contains(s.Right, s.Bottom))
+                defects.Add($"{_method.Id}: toolbar '{c.Text}' falls outside the window");
+        }
 
         // stacking order: menu, toolbar, blurb, parameters, io, status bar
         var order = new (Control c, string Name)[]
