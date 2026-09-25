@@ -10,7 +10,11 @@ internal static class Program
         if (args.Length == 0 || args[0] == "--demo")
         {
             ApplicationConfiguration.Initialize();
-            Application.Run(new MainForm(args.Length > 1 ? string.Join(' ', args[1..]) : "Attack at dawn!"));
+            ParseDemoArgs(args.Skip(1).ToArray(), out var methodId, out var fields, out var text);
+            var form = new MainForm(text);
+            if (methodId != null) form.SelectMethod(methodId);
+            if (fields.Count > 0) form.ApplyDemoFields(fields);
+            Application.Run(form);
             return 0;
         }
 
@@ -31,6 +35,29 @@ internal static class Program
         };
     }
 
+    /// <summary>Shared parsing for --demo/--render: an optional --method id,
+    /// any number of --set name=value pairs, and the trailing demo text.</summary>
+    private static void ParseDemoArgs(string[] args, out string? methodId,
+        out Dictionary<string, string> fields, out string text)
+    {
+        methodId = null;
+        fields = new Dictionary<string, string>();
+        var words = new List<string>();
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "--method" && i + 1 < args.Length)
+                methodId = args[++i];
+            else if (args[i] == "--set" && i + 1 < args.Length)
+            {
+                var kv = args[++i].Split('=', 2);
+                if (kv.Length == 2) fields[kv[0]] = kv[1];
+            }
+            else
+                words.Add(args[i]);
+        }
+        text = words.Count > 0 ? string.Join(' ', words) : "Attack at dawn!";
+    }
+
     /// <summary>Paints the window into a PNG without needing a screenshot of
     /// the desktop; handy for docs and automated layout checks.</summary>
     private static int Render(string[] args)
@@ -41,13 +68,7 @@ internal static class Program
             return 2;
         }
         var png = args[0];
-        string? methodId = null;
-        string? text = null;
-        for (var i = 1; i < args.Length; i++)
-        {
-            if (args[i] == "--method" && i + 1 < args.Length) methodId = args[++i];
-            else text = text == null ? args[i] : text + " " + args[i];
-        }
+        ParseDemoArgs(args[1..], out var methodId, out var fields, out var text);
         var method = methodId == null ? Registry.All[0] : Registry.Find(methodId);
         if (method == null)
         {
@@ -55,8 +76,9 @@ internal static class Program
             return 2;
         }
         ApplicationConfiguration.Initialize();
-        var form = new MainForm(text ?? "Attack at dawn!");
+        var form = new MainForm(text);
         form.SelectMethod(method.Id);
+        if (fields.Count > 0) form.ApplyDemoFields(fields);
         form.Show();
         Application.DoEvents();
         System.Threading.Thread.Sleep(700);

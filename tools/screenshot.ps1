@@ -17,7 +17,18 @@ public class Win32 {
 }
 "@
 
-$proc = Start-Process -FilePath $ExePath -ArgumentList '--demo', '"Attack at dawn!"' -PassThru
+# A staged session: AES-256-GCM with the NIST SP 800-38D test key and nonce,
+# so the README shot shows the toolbar, parameter rows, dice and a live result.
+$demoArgs = @(
+    '--demo', '--method', 'aes-gcm',
+    '--set', 'key=603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4',
+    '--set', 'keyenc=Hex',
+    '--set', 'iv=cafebabefacedbaddecaf888',
+    '--set', 'ivenc=Hex',
+    '"The quick brown fox jumps over the lazy dog"'
+)
+
+$proc = Start-Process -FilePath $ExePath -ArgumentList $demoArgs -PassThru
 Start-Sleep -Milliseconds 4000
 
 [Win32]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null

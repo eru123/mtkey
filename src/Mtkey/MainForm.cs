@@ -552,6 +552,30 @@ internal sealed class MainForm : Form
         if (method != null) SwitchMethod(method);
     }
 
+    /// <summary>Fills parameter fields before the window is shown; used by
+    /// --demo and --render so screenshots show a working session.</summary>
+    internal void ApplyDemoFields(IReadOnlyDictionary<string, string> fields)
+    {
+        foreach (var (name, value) in fields)
+        {
+            if (!_fieldControls.TryGetValue(name, out var control)) continue;
+            switch (control)
+            {
+                case TextBox tb:
+                    tb.Text = value;
+                    break;
+                case ComboBox cb:
+                    var match = cb.Items.Cast<object>().FirstOrDefault(o => o.ToString() == value);
+                    if (match != null) cb.SelectedItem = match;
+                    break;
+                case NumericUpDown nd when decimal.TryParse(value, out var dv):
+                    nd.Value = Math.Clamp(dv, nd.Minimum, nd.Maximum);
+                    break;
+            }
+        }
+        Schedule();
+    }
+
     /// <summary>Walks the visible layout and reports anything that overlaps,
     /// falls outside the window or collapses to nothing. Backs the
     /// --layoutcheck mode so broken rows never ship again.</summary>
