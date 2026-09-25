@@ -256,6 +256,15 @@ internal static class Program
             Application.DoEvents();
             if (form.CurrentMethodId != "defuse-password")
                 failures.Add("a matchless search changed the method, which it must not");
+
+            // swap must exchange both values and captions
+            form.SetIoForTest("plain body", "cipher body");
+            form.SwapForTest();
+            Application.DoEvents();
+            if (form.InputText != "cipher body" || form.OutputText != "plain body")
+                failures.Add("swap did not exchange the two text areas");
+            if (form.TopCaption != "Ciphertext" || form.BottomCaption != "Plaintext")
+                failures.Add($"swap left captions '{form.TopCaption}' / '{form.BottomCaption}'");
         }
 
         foreach (var f in failures) Console.WriteLine($"UI {f}");
@@ -268,7 +277,7 @@ internal static class Program
     private static int RunSmoke()
     {
         ApplicationConfiguration.Initialize();
-        var form = new MainForm();
+        var form = new MainForm { ConfirmExit = false };
         var timer = new System.Windows.Forms.Timer { Interval = 1200 };
         timer.Tick += (_, _) => { timer.Stop(); form.Close(); };
         form.Shown += (_, _) => timer.Start();

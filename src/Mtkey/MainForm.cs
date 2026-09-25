@@ -56,6 +56,11 @@ internal sealed class MainForm : Form
     private CipherDirection _direction = CipherDirection.Encode;
     private readonly Dictionary<string, Control> _fieldControls = new();
     private readonly Dictionary<string, Label> _fieldGlyphs = new();
+    private readonly Dictionary<string, FieldSpec> _fieldSpecs = new();
+
+    /// <summary>Automated runs clear this so closing never blocks on the
+    /// exit prompt.</summary>
+    internal bool ConfirmExit { get; set; } = true;
 
     /// <param name="demoInput">Pre-fills the input box, used by --demo.</param>
     public MainForm(string? demoInput = null)
@@ -65,9 +70,13 @@ internal sealed class MainForm : Form
         Font = SystemFonts.MessageBoxFont;
         BackColor = SystemColors.Control;
         ForeColor = SystemColors.ControlText;
-        MinimumSize = new Size(760, 540);
-        MaximumSize = new Size(1200, 900);
-        ClientSize = new Size(880, 600);
+        // frame rules: resizable only within these bounds, and the maximize
+        // button is removed from the caption entirely
+        MinimumSize = new Size(720, 600);
+        MaximumSize = new Size(1200, 860);
+        ClientSize = new Size(880, 620);
+        MaximizeBox = false;
+        FormClosing += ConfirmExitBeforeClose;
 
         BuildMenu();
         BuildToolbar();
@@ -115,6 +124,16 @@ internal sealed class MainForm : Form
 
     // ------------------------------------------------------------ layout
 
+    private void ConfirmExitBeforeClose(object? sender, FormClosingEventArgs e)
+    {
+        if (!ConfirmExit || e.CloseReason != CloseReason.UserClosing) return;
+        var choice = MessageBox.Show(this,
+            "Are you sure you want to exit MTKey?", "Exit MTKey",
+            MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        if (choice == DialogResult.No)
+            e.Cancel = true;
+    }
+
     private void BuildMenu()
     {
         var menu = new MenuStrip();
@@ -130,7 +149,7 @@ internal sealed class MainForm : Form
         help.DropDownItems.Add(new ToolStripSeparator());
         help.DropDownItems.Add(new ToolStripMenuItem("&About MTKey...", null,
             (_, _) => MessageBox.Show(this,
-                "MTKey 1.0.6\nA cipher workbench: encode, decode, hash, sign, and learn.\n" +
+                "MTKey 1.0.7\nA cipher workbench: encode, decode, hash, sign, and learn.\n" +
                 $"{Registry.All.Count} methods. MIT licensed.\nhttps://github.com/eru123/mtkey",
                 "About MTKey", MessageBoxButtons.OK, MessageBoxIcon.Information)));
         menu.Items.Add(file);
@@ -372,20 +391,42 @@ internal sealed class MainForm : Form
         _paramsGroup.PerformLayout();
     }
 
+    /// <summary>One parameter row as a strict three column grid:
+    /// 100px label | fluid input | 32px dice column. The TableLayoutPanel
+    /// owns all geometry, so columns can never drift, overlap or leave the
+    /// row; validation marks are appended to the label instead of floating
+    /// beside the input.</summary>
     private Control BuildFieldRow(FieldSpec spec)
     {
         var multiline = spec.Kind == FieldKind.Multiline;
-        var row = new Panel { Dock = DockStyle.Top, Height = multiline ? 64 : 26 };
+        var row = new Panel { Dock = DockStyle.Top, Height = multiline ? 66 : 28, Padding = new Padding(0, 1, 0, 1) };
+        _fieldSpecs[spec.Name] = spec;
+
+        var grid = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 3,
+            RowCount = 1,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty,
+        };
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100)); // label
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));  // input
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 32));  // dice
+        grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var label = new Label
         {
             Text = spec.Label,
             AutoSize = false,
-            Bounds = new Rectangle(0, multiline ? 2 : 4, LabelWidth, 18),
+            Dock = DockStyle.Fill,
             TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true,
+            Margin = new Padding(0, 0, 4, 0),
         };
         _tips.SetToolTip(label, spec.Hint ?? spec.Label);
-        row.Controls.Add(label);
+        _fieldGlyphs[spec.Name] = label;
+        grid.Controls.Add(label, 0, 0);
 
         Control input = spec.Kind switch
         {
@@ -398,12 +439,8 @@ internal sealed class MainForm : Form
             FieldKind.Multiline => NewMonoBox(),
             _ => NewMonoBox(),
         };
-
-        var left = LabelWidth + 2;
-        var reserve = (spec.Generator != null ? DiceWidth : 0) + GlyphWidth;
-        input.Bounds = new Rectangle(left, multiline ? 0 : 1,
-            Math.Max(60, row.ClientSize.Width - left - reserve),
-            multiline ? 62 : 23);
+        input.Dock = DockStyle.Fill;
+        input.Margin = new Padding(2, 1, 2, 1);
         switch (input)
         {
             case TextBox tb:
@@ -429,35 +466,21 @@ internal sealed class MainForm : Form
         }
         _fieldControls[spec.Name] = input;
         if (spec.Hint != null) _tips.SetToolTip(input, spec.Hint);
+        grid.Controls.Add(input, 1, 0);
 
-        Button? dice = null;
         if (spec.Generator != null)
         {
-            dice = NewButton("🎲");
+            var dice = NewButton("🎲");
             dice.AutoSize = false;
-            dice.Bounds = new Rectangle(row.ClientSize.Width - DiceWidth - GlyphWidth, 1, DiceWidth - 4, 23);
+            dice.Anchor = AnchorStyles.None; // centered in its 32px column
+            dice.MinimumSize = new Size(26, 23);
+            dice.Size = new Size(26, 23);
             _tips.SetToolTip(dice, "Roll a random value");
             dice.Click += (_, _) => Roll(spec.Name);
-            row.Controls.Add(dice);
+            grid.Controls.Add(dice, 2, 0);
         }
 
-        var glyph = new Label
-        {
-            Bounds = new Rectangle(row.ClientSize.Width - GlyphWidth, multiline ? 2 : 6, GlyphWidth, 16),
-            TextAlign = ContentAlignment.MiddleLeft,
-            Text = "",
-        };
-        _fieldGlyphs[spec.Name] = glyph;
-        row.Controls.Add(glyph);
-
-        row.Resize += (_, _) =>
-        {
-            input.Width = Math.Max(60, row.ClientSize.Width - left - reserve);
-            if (dice != null)
-                dice.Location = new Point(row.ClientSize.Width - DiceWidth - GlyphWidth, 1);
-            glyph.Location = new Point(row.ClientSize.Width - GlyphWidth, multiline ? 2 : 6);
-        };
-
+        row.Controls.Add(grid);
         return row;
     }
 
@@ -599,6 +622,9 @@ internal sealed class MainForm : Form
         (_input.Text, _output.Text) = (_output.Text, _input.Text);
         (_inputGroup.Text, _outputGroup.Text) = (_outputGroup.Text, _inputGroup.Text);
         Schedule();
+        // put the caret where the next operation starts: the top box
+        _input.Focus();
+        _input.Select(_input.Text.Length, 0);
     }
 
     private void CopyOutput()
@@ -626,11 +652,14 @@ internal sealed class MainForm : Form
         var validation = _method.ValidateFields(CollectFields());
         foreach (var (field, verdict) in validation.Fields)
         {
-            if (!_fieldGlyphs.TryGetValue(field, out var glyph)) continue;
-            glyph.Text = verdict.Certain ? (verdict.Ok ? "✔" : "✖") : "";
-            glyph.ForeColor = verdict.Ok ? NoteGreen : ErrorRed;
+            if (!_fieldGlyphs.TryGetValue(field, out var label)) continue;
+            if (!_fieldSpecs.TryGetValue(field, out var spec)) continue;
+            label.Text = verdict.Certain
+                ? spec.Label + (verdict.Ok ? "  ✔" : "  ✖")
+                : spec.Label;
+            label.ForeColor = verdict.Certain ? (verdict.Ok ? NoteGreen : ErrorRed) : SystemColors.ControlText;
             if (verdict.Certain)
-                _tips.SetToolTip(glyph, verdict.Message);
+                _tips.SetToolTip(label, verdict.Message);
         }
         if (validation.Overall.Length > 0)
         {
@@ -688,6 +717,18 @@ internal sealed class MainForm : Form
     internal void FocusSelector() => _selector.FocusBox();
     internal void SearchAndPick(string query, int arrowDowns = 0) =>
         _selector.SimulateTypeAndPick(query, arrowDowns);
+
+    // probes for the automated ui check
+    internal string InputText => _input.Text;
+    internal string OutputText => _output.Text;
+    internal string TopCaption => _inputGroup.Text;
+    internal string BottomCaption => _outputGroup.Text;
+    internal void SetIoForTest(string input, string output)
+    {
+        _input.Text = input;
+        _output.Text = output;
+    }
+    internal void SwapForTest() => SwapSides();
 
     /// <summary>Fills parameter fields before the window is shown; used by
     /// --demo and --render so screenshots show a working session.</summary>

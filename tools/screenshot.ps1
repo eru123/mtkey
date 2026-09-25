@@ -13,7 +13,7 @@ using System.Runtime.InteropServices;
 public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
 public class Win32 {
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
-    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
 }
 "@
 
@@ -31,9 +31,9 @@ $demoArgs = @(
 $proc = Start-Process -FilePath $ExePath -ArgumentList $demoArgs -PassThru
 Start-Sleep -Milliseconds 4000
 
-[Win32]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
-Start-Sleep -Milliseconds 400
-
+# PrintWindow renders the window content into a bitmap even when the window
+# sits behind others, so the capture never races with whatever the user has
+# on screen and never needs to steal focus.
 $rect = New-Object RECT
 [Win32]::GetWindowRect($proc.MainWindowHandle, [ref]$rect) | Out-Null
 $w = $rect.Right - $rect.Left
@@ -42,9 +42,17 @@ Write-Output "window at $($rect.Left),$($rect.Top) size ${w}x${h}"
 
 $bmp = New-Object System.Drawing.Bitmap($w, $h)
 $gfx = [System.Drawing.Graphics]::FromImage($bmp)
-$gfx.CopyFromScreen($rect.Left, $rect.Top, 0, 0, (New-Object System.Drawing.Size($w, $h)))
+$hdc = $gfx.GetHdc()
+$ok = [Win32]::PrintWindow($proc.MainWindowHandle, $hdc, 2)  # 2 = PW_RENDERFULLCONTENT
+$gfx.ReleaseHdc($hdc)
+$gfx.Dispose()
+if (-not $ok) {
+    $bmp.Dispose()
+    Stop-Process -Id $proc.Id -Force
+    throw "PrintWindow failed"
+}
 $bmp.Save($OutPng, [System.Drawing.Imaging.ImageFormat]::Png)
-$gfx.Dispose(); $bmp.Dispose()
+$bmp.Dispose()
 
 Stop-Process -Id $proc.Id -Force
 Write-Output "saved $OutPng"
