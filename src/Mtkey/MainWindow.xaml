@@ -1,0 +1,124 @@
+<Window x:Class="Mtkey.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MTKey"
+        Width="880" Height="620"
+        MinWidth="720" MinHeight="600"
+        MaxWidth="1200" MaxHeight="860"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
+        FontSize="12"
+        Background="{x:Static SystemColors.ControlBrush}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Row 0: Menu Bar -->
+            <RowDefinition Height="Auto"/> <!-- Row 1: Header / Top Controls -->
+            <RowDefinition Height="Auto"/> <!-- Row 2: Parameters FieldSet -->
+            <RowDefinition Height="*"/>    <!-- Row 3: Main Text Containers -->
+            <RowDefinition Height="Auto"/> <!-- Row 4: Status Bar -->
+        </Grid.RowDefinitions>
+
+        <!-- Row 0: Menu Bar -->
+        <Menu Grid.Row="0">
+            <MenuItem Header="_File">
+                <MenuItem Header="E_xit" Click="Exit_Click" InputGestureText="Alt+F4"/>
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="About this method" Click="MethodHelp_Click" InputGestureText="F1"/>
+                <MenuItem Header="Open Wikipedia page" Click="OpenWiki_Click" x:Name="WikiMenuItem"/>
+                <MenuItem Header="Run self-test" Click="SelfTest_Click"/>
+                <Separator/>
+                <MenuItem Header="About MTKey..." Click="About_Click"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- Row 1: Header Toolbar -->
+        <StackPanel Grid.Row="1" Orientation="Vertical" Margin="4">
+            <DockPanel LastChildFill="True">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0">
+                    <StackPanel x:Name="ModePanel" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                        <RadioButton x:Name="EncodeRadio" GroupName="Mode" Margin="0,0,10,0" Checked="Mode_Changed"/>
+                        <RadioButton x:Name="DecodeRadio" GroupName="Mode" Checked="Mode_Changed"/>
+                    </StackPanel>
+                    <Button x:Name="WikiButton" Content="Wikipedia" Width="80" Height="26" Margin="0,0,4,0" Click="OpenWiki_Click"/>
+                    <Button Content="?" Width="30" Height="26" Click="MethodHelp_Click"
+                            ToolTip="What is this method? (F1)"/>
+                </StackPanel>
+                <ComboBox x:Name="MethodSelector" Height="26" VerticalAlignment="Center"
+                          MinWidth="250" IsEditable="True" IsTextSearchEnabled="False"
+                          IsSynchronizedWithCurrentItem="False"
+                          StaysOpenOnEdit="True"
+                          ToolTip="Search a cipher: base64, defuse, sha2, jwt..."
+                          SelectionChanged="Method_Selected"
+                          TextBoxBase.TextChanged="MethodSelector_TextChanged"/>
+            </DockPanel>
+            <TextBlock x:Name="BlurbText" FontSize="11" Foreground="Gray" Margin="2,4,0,0"
+                       TextTrimming="CharacterEllipsis"
+                       MouseLeftButtonUp="MethodHelp_Click"
+                       Cursor="Hand"
+                       ToolTip="Click for the full explanation"/>
+        </StackPanel>
+
+        <!-- Row 2: Parameters GroupBox -->
+        <GroupBox Grid.Row="2" Header="Parameters" Margin="4,2" x:Name="ParamsGroup">
+            <Grid x:Name="ParamsGrid" Margin="4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="32"/>
+                </Grid.ColumnDefinitions>
+                <!-- rows are generated per method in code-behind -->
+            </Grid>
+        </GroupBox>
+
+        <!-- Row 3: Plaintext / Execute / Ciphertext -->
+        <Grid Grid.Row="3" Margin="4">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <GroupBox Grid.Row="0" Header="Plaintext" x:Name="PlaintextGroup">
+                <TextBox x:Name="InputBox" AcceptsReturn="True" TextChanged="Input_TextChanged"
+                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                         FontFamily="Consolas" FontSize="12"/>
+            </GroupBox>
+
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,4" VerticalAlignment="Center">
+                <Button x:Name="ExecuteButton" Content="Execute" Width="90" Height="28"
+                        FontWeight="Bold" IsDefault="True" Click="Execute_Click"
+                        ToolTip="Run the operation immediately"/>
+                <TextBlock Text="runs now (Enter works too)" VerticalAlignment="Center"
+                           Margin="8,0,0,0" Foreground="Gray" FontSize="11"/>
+            </StackPanel>
+
+            <GroupBox Grid.Row="2" Header="Ciphertext" x:Name="CiphertextGroup">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,2">
+                        <Button Content="Copy" Width="60" Margin="2,0" Click="Copy_Click"/>
+                        <Button Content="Swap" Width="60" Margin="2,0" Click="Swap_Click"
+                                ToolTip="Exchange the two boxes, contents and captions"/>
+                        <Button Content="Clear" Width="60" Margin="2,0" Click="Clear_Click"/>
+                    </StackPanel>
+                    <TextBox x:Name="OutputBox" IsReadOnly="True" AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                             FontFamily="Consolas" FontSize="12"/>
+                </DockPanel>
+            </GroupBox>
+        </Grid>
+
+        <!-- Row 4: Status Bar -->
+        <StatusBar Grid.Row="4" Height="24" Background="{x:Static SystemColors.ControlBrush}">
+            <StatusBarItem HorizontalAlignment="Stretch">
+                <TextBlock x:Name="StatusText" Text="Ready." TextTrimming="CharacterEllipsis"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock x:Name="CountText" Foreground="Gray"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

@@ -1,3 +1,8 @@
+using System.IO;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Mtkey.Core;
 
 namespace Mtkey;
@@ -9,17 +14,15 @@ internal static class Program
     {
         if (args.Length == 0 || args[0] == "--demo")
         {
-            ApplicationConfiguration.Initialize();
             ParseDemoArgs(args.Skip(1).ToArray(), out var methodId, out var fields, out var text);
-            var form = new MainForm(text);
-            if (methodId != null) form.SelectMethod(methodId);
-            if (fields.Count > 0) form.ApplyDemoFields(fields);
-            Application.Run(form);
+            var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
+            var window = new MainWindow(text);
+            if (methodId != null) window.SelectMethod(methodId);
+            if (fields.Count > 0) window.ApplyDemoFields(fields);
+            app.Run(window);
             return 0;
         }
 
-        // GUI subsystem binaries have no console of their own; borrow the one
-        // that launched us so --selftest output shows up in a terminal.
         AttachConsole(ATTACH_PARENT_PROCESS);
 
         return args[0] switch
@@ -34,60 +37,6 @@ internal static class Program
             "--help" or "-h" or "-?" => PrintHelp(),
             _ => PrintHelp($"Unknown option {args[0]}."),
         };
-    }
-
-    /// <summary>Shared parsing for --demo/--render: an optional --method id,
-    /// any number of --set name=value pairs, and the trailing demo text.</summary>
-    private static void ParseDemoArgs(string[] args, out string? methodId,
-        out Dictionary<string, string> fields, out string text)
-    {
-        methodId = null;
-        fields = new Dictionary<string, string>();
-        var words = new List<string>();
-        for (var i = 0; i < args.Length; i++)
-        {
-            if (args[i] == "--method" && i + 1 < args.Length)
-                methodId = args[++i];
-            else if (args[i] == "--set" && i + 1 < args.Length)
-            {
-                var kv = args[++i].Split('=', 2);
-                if (kv.Length == 2) fields[kv[0]] = kv[1];
-            }
-            else
-                words.Add(args[i]);
-        }
-        text = words.Count > 0 ? string.Join(' ', words) : "Attack at dawn!";
-    }
-
-    /// <summary>Paints the window into a PNG without needing a screenshot of
-    /// the desktop; handy for docs and automated layout checks.</summary>
-    private static int Render(string[] args)
-    {
-        if (args.Length == 0)
-        {
-            Console.Error.WriteLine("usage: mtkey --render <out.png> [--method id] [demo text]");
-            return 2;
-        }
-        var png = args[0];
-        ParseDemoArgs(args[1..], out var methodId, out var fields, out var text);
-        var method = methodId == null ? Registry.All[0] : Registry.Find(methodId);
-        if (method == null)
-        {
-            Console.Error.WriteLine($"No method named '{methodId}'. Try --list.");
-            return 2;
-        }
-        ApplicationConfiguration.Initialize();
-        var form = new MainForm(text);
-        form.SelectMethod(method.Id);
-        if (fields.Count > 0) form.ApplyDemoFields(fields);
-        form.Show();
-        Application.DoEvents();
-        System.Threading.Thread.Sleep(700);
-        Application.DoEvents();
-        using var bmp = new Bitmap(form.Width, form.Height);
-        form.DrawToBitmap(bmp, new Rectangle(0, 0, form.Width, form.Height));
-        bmp.Save(png, System.Drawing.Imaging.ImageFormat.Png);
-        return 0;
     }
 
     private const int ATTACH_PARENT_PROCESS = -1;
@@ -174,8 +123,7 @@ internal static class Program
     }
 
     /// <summary>Maps the friendly direction names methods use on their
-    /// buttons (hash, sign, verify, decrypt, inspect...) onto the two
-    /// directions the engine speaks.</summary>
+    /// buttons onto the two directions the engine speaks.</summary>
     private static bool TryParseDirection(string text, out CipherDirection direction)
     {
         switch (text.Trim().ToLowerInvariant())
@@ -201,71 +149,105 @@ internal static class Program
         }
     }
 
-    /// <summary>Opens the UI against every method and fails if any parameter
-    /// row overlaps or any text area gets crushed. Guards the layout
-    /// regression that shipped in 1.0.0.</summary>
+    private static int RunSmoke()
+    {
+        var app = new Application { ShutdownMode = ShutdownMode.OnMainWindowClose };
+        var window = new MainWindow { ConfirmExit = false };
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1200) };
+        timer.Tick += (_, _) => { timer.Stop(); window.Close(); };
+        window.Loaded += (_, _) => timer.Start();
+        app.Run(window);
+        Console.WriteLine("smoke: ui opened and closed cleanly");
+        return 0;
+    }
+
+    /// <summary>WPF's layout engine cannot overlap children, so this checks
+    /// the things it CAN get wrong: starved inputs, crushed text areas and
+    /// a starved selector, for every method.</summary>
     private static int RunLayoutCheck()
     {
-        ApplicationConfiguration.Initialize();
+        var app = new Application();
         var failures = 0;
-        using (var form = new MainForm())
+        var window = new MainWindow();
+        window.Show();
+        window.ConfirmExit = false;
+
+        foreach (var method in Registry.All)
         {
-            form.Show();
-            foreach (var method in Registry.All)
+            window.SelectMethod(method.Id);
+            window.UpdateLayout();
+            DoEvents();
+            foreach (var defect in window.LayoutDefects())
             {
-                form.SelectMethod(method.Id);
-                form.RunLayoutPass();
-                var defects = form.LayoutDefects();
-                foreach (var d in defects)
-                    Console.WriteLine($"LAYOUT {d}");
-                if (defects.Count > 0) failures++;
+                Console.WriteLine($"LAYOUT {defect}");
+                failures++;
             }
         }
+        window.Close();
+        app.Shutdown();
+
         Console.WriteLine(failures == 0
             ? $"layout: all {Registry.All.Count} methods render without overlaps"
-            : $"layout: {failures} method(s) with layout defects");
+            : $"layout: {failures} defect(s)");
         return failures == 0 ? 0 : 1;
     }
 
-    /// <summary>Drives the selector's real filter-and-pick pipeline: it must
-    /// know every method, a typed search must filter, and Enter must switch.
-    /// Exists because 1.0.2 shipped a selector nobody had wired up.</summary>
+    private static void DoEvents()
+    {
+        var frame = new DispatcherFrame();
+        Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background,
+            new DispatcherOperationCallback(f => ((DispatcherFrame)f).Continue = false), frame);
+        Dispatcher.PushFrame(frame);
+    }
+
+    /// <summary>Drives the selector's real filter-and-pick pipeline and the
+    /// swap behavior. Exists because 1.0.2 shipped a selector nobody had
+    /// wired up.</summary>
     private static int RunUiCheck()
     {
-        ApplicationConfiguration.Initialize();
+        var app = new Application();
         var failures = new List<string>();
-        using (var form = new MainForm())
-        {
-            form.Show();
-            Application.DoEvents();
+        var window = new MainWindow();
+        window.Show();
+        window.ConfirmExit = false;
+        DoEvents();
 
-            if (form.SelectorItemCount != Registry.All.Count)
-                failures.Add($"selector lists {form.SelectorItemCount} methods, expected {Registry.All.Count}");
+        if (window.FilteredCount != Registry.All.Count)
+            failures.Add($"selector lists {window.FilteredCount} methods, expected {Registry.All.Count}");
 
-            form.SearchAndPick("sha2");
-            Application.DoEvents();
-            if (form.CurrentMethodId != "sha256")
-                failures.Add($"searching 'sha2' + Enter left method '{form.CurrentMethodId}'");
+        window.SetSearchText("sha2");
+        DoEvents();
+        window.PickFiltered(0);
+        DoEvents();
+        if (window.CurrentMethodId != "sha256")
+            failures.Add($"searching 'sha2' + pick left method '{window.CurrentMethodId}' " +
+                         $"(filtered: {window.FilteredCount} first: {window.FilteredFirst} " +
+                         $"lastQuery: '{window.LastQuery}' comboText: '{window.ComboText}')");
 
-            form.SearchAndPick("defuse", arrowDowns: 1);
-            Application.DoEvents();
-            if (form.CurrentMethodId != "defuse-password")
-                failures.Add($"arrow-down + Enter over 'defuse' left method '{form.CurrentMethodId}'");
+        window.SetSearchText("defuse");
+        DoEvents();
+        window.PickFiltered(1);
+        DoEvents();
+        if (window.CurrentMethodId != "defuse-password")
+            failures.Add($"second filtered row over 'defuse' left method '{window.CurrentMethodId}'");
 
-            form.SearchAndPick("zzzznope");
-            Application.DoEvents();
-            if (form.CurrentMethodId != "defuse-password")
-                failures.Add("a matchless search changed the method, which it must not");
+        window.SetSearchText("zzzznope");
+        DoEvents();
+        window.PickFiltered(0);
+        DoEvents();
+        if (window.CurrentMethodId != "defuse-password")
+            failures.Add("a matchless search changed the method, which it must not");
 
-            // swap must exchange both values and captions
-            form.SetIoForTest("plain body", "cipher body");
-            form.SwapForTest();
-            Application.DoEvents();
-            if (form.InputText != "cipher body" || form.OutputText != "plain body")
-                failures.Add("swap did not exchange the two text areas");
-            if (form.TopCaption != "Ciphertext" || form.BottomCaption != "Plaintext")
-                failures.Add($"swap left captions '{form.TopCaption}' / '{form.BottomCaption}'");
-        }
+        window.SetIoForTest("plain body", "cipher body");
+        window.SwapForTest();
+        DoEvents();
+        if (window.InputText != "cipher body" || window.OutputText != "plain body")
+            failures.Add("swap did not exchange the two text areas");
+        if (window.TopCaption != "Ciphertext" || window.BottomCaption != "Plaintext")
+            failures.Add($"swap left captions '{window.TopCaption}' / '{window.BottomCaption}'");
+
+        window.Close();
+        app.Shutdown();
 
         foreach (var f in failures) Console.WriteLine($"UI {f}");
         Console.WriteLine(failures.Count == 0
@@ -274,16 +256,70 @@ internal static class Program
         return failures.Count == 0 ? 0 : 1;
     }
 
-    private static int RunSmoke()
+    /// <summary>Renders the window offscreen into a PNG for docs and
+    /// automated visual checks; no desktop, no focus needed.</summary>
+    private static int Render(string[] args)
     {
-        ApplicationConfiguration.Initialize();
-        var form = new MainForm { ConfirmExit = false };
-        var timer = new System.Windows.Forms.Timer { Interval = 1200 };
-        timer.Tick += (_, _) => { timer.Stop(); form.Close(); };
-        form.Shown += (_, _) => timer.Start();
-        Application.Run(form);
-        Console.WriteLine("smoke: ui opened and closed cleanly");
+        if (args.Length == 0)
+        {
+            Console.Error.WriteLine("usage: mtkey --render <out.png> [--method id] [--set name=value ...] [demo text]");
+            return 2;
+        }
+        var png = args[0];
+        ParseDemoArgs(args[1..], out var methodId, out var fields, out var text);
+        var method = methodId == null ? Registry.All[0] : Registry.Find(methodId);
+        if (method == null)
+        {
+            Console.Error.WriteLine($"No method named '{methodId}'. Try --list.");
+            return 2;
+        }
+
+        var app = new Application();
+        var window = new MainWindow(text) { ConfirmExit = false, WindowStartupLocation = WindowStartupLocation.Manual };
+        if (methodId != null) window.SelectMethod(methodId);
+        if (fields.Count > 0) window.ApplyDemoFields(fields);
+        window.Show();
+        DoEvents();
+        window.UpdateLayout();
+        DoEvents();
+
+        var width = (int)Math.Ceiling(window.ActualWidth);
+        var height = (int)Math.Ceiling(window.ActualHeight);
+        var rtb = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        rtb.Render(window);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(rtb));
+        using (var fs = File.Create(png))
+        {
+            encoder.Save(fs);
+        }
+        window.Close();
+        app.Shutdown();
+        Console.WriteLine($"rendered {width}x{height} to {png}");
         return 0;
+    }
+
+    /// <summary>Shared parsing for --demo/--render: an optional --method id,
+    /// any number of --set name=value pairs, and the trailing demo text.</summary>
+    private static void ParseDemoArgs(string[] args, out string? methodId,
+        out Dictionary<string, string> fields, out string text)
+    {
+        methodId = null;
+        fields = new Dictionary<string, string>();
+        var words = new List<string>();
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "--method" && i + 1 < args.Length)
+                methodId = args[++i];
+            else if (args[i] == "--set" && i + 1 < args.Length)
+            {
+                var kv = args[++i].Split('=', 2);
+                if (kv.Length == 2) fields[kv[0]] = kv[1];
+            }
+            else
+                words.Add(args[i]);
+        }
+        text = words.Count > 0 ? string.Join(' ', words) : "Attack at dawn!";
     }
 
     private static int PrintHelp(string? error = null)
@@ -299,6 +335,9 @@ internal static class Program
               mtkey --run <id> <dir> [--set name=value ...] <input>
                                           run one method from the command line
               mtkey --smoke               open and close the UI (automation check)
+              mtkey --layoutcheck         measure every method's layout
+              mtkey --uicheck             drive search, pick and swap
+              mtkey --render <out.png> [--method id] [--set name=value ...] [text]
 
             examples:
               mtkey --run base64 encode "hello world"
