@@ -29,14 +29,15 @@ internal sealed class MainForm : Form
     };
 
     private readonly GroupBox _paramsGroup = NewGroup("Parameters");
-    private readonly GroupBox _inputGroup = NewGroup("Input");
-    private readonly GroupBox _outputGroup = NewGroup("Output");
+    private readonly GroupBox _inputGroup = NewGroup("Plaintext");
+    private readonly GroupBox _outputGroup = NewGroup("Ciphertext");
 
     private readonly TextBox _input = NewMonoBox();
     private readonly TextBox _output = NewMonoBox(readOnly: true);
     private readonly Button _copyButton = NewButton("Copy");
-    private readonly Button _useButton = NewButton("Use as Input");
+    private readonly Button _useButton = NewButton("Swap");
     private readonly Button _clearButton = NewButton("Clear");
+    private readonly Button _executeButton = NewPrimaryButton("Execute");
 
     private MenuStrip _menu = null!;
     private Panel _toolBar = null!;
@@ -96,8 +97,10 @@ internal sealed class MainForm : Form
         _encodeRadio.CheckedChanged += (_, _) => DirectionChanged();
         _decodeRadio.CheckedChanged += (_, _) => DirectionChanged();
         _copyButton.Click += (_, _) => CopyOutput();
-        _useButton.Click += (_, _) => { _input.Text = _output.Text; Schedule(); };
+        _useButton.Click += (_, _) => SwapSides();
         _clearButton.Click += (_, _) => { _input.Clear(); _output.Clear(); Schedule(); };
+        _executeButton.Click += (_, _) => { ValidateLive(); ProcessNow(); };
+        AcceptButton = _executeButton;
 
         _debounce.Tick += (_, _) => { _debounce.Stop(); ValidateLive(); ProcessNow(); };
 
@@ -127,7 +130,7 @@ internal sealed class MainForm : Form
         help.DropDownItems.Add(new ToolStripSeparator());
         help.DropDownItems.Add(new ToolStripMenuItem("&About MTKey...", null,
             (_, _) => MessageBox.Show(this,
-                "MTKey 1.0.5\nA cipher workbench: encode, decode, hash, sign, and learn.\n" +
+                "MTKey 1.0.6\nA cipher workbench: encode, decode, hash, sign, and learn.\n" +
                 $"{Registry.All.Count} methods. MIT licensed.\nhttps://github.com/eru123/mtkey",
                 "About MTKey", MessageBoxButtons.OK, MessageBoxIcon.Information)));
         menu.Items.Add(file);
@@ -223,7 +226,10 @@ internal sealed class MainForm : Form
     private void BuildParamsGroup()
     {
         _paramsGroup.Dock = DockStyle.Top;
-        _paramsGroup.AutoSize = true;
+        // AutoSize on a docked group box collapses its width to the
+        // children's preferred size and starves the inputs; the height is
+        // set explicitly in RebuildParams instead.
+        _paramsGroup.AutoSize = false;
         _paramsGroup.Padding = new Padding(8, 4, 8, 4);
         _paramsGroup.Margin = new Padding(6, 2, 6, 2);
         Controls.Add(_paramsGroup);
@@ -235,11 +241,12 @@ internal sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 2,
+            RowCount = 3,
             Padding = new Padding(6, 2, 6, 4),
             Margin = Padding.Empty,
         };
         grid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));
         grid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
         _inputGroup.Dock = DockStyle.Fill;
@@ -250,6 +257,28 @@ internal sealed class MainForm : Form
         _input.WordWrap = false;
         _input.AcceptsTab = true;
         _inputGroup.Controls.Add(_input);
+
+        // the primary action sits between the two areas: one deliberate
+        // click (or Enter) runs the method right now, live typing still works
+        var execBar = new Panel { Dock = DockStyle.Fill, Padding = new Padding(2, 5, 2, 2) };
+        _executeButton.Location = new Point(2, 5);
+        var execHint = new Label
+        {
+            Text = "runs now (Enter works too)",
+            AutoSize = true,
+            ForeColor = SystemColors.GrayText,
+            Location = new Point(0, 0),
+        };
+        _tips.SetToolTip(_executeButton, "Run the operation immediately");
+        void PlaceExec()
+        {
+            _executeButton.Location = new Point(2, 5);
+            execHint.Location = new Point(_executeButton.Right + 8,
+                5 + (_executeButton.Height - execHint.PreferredHeight) / 2);
+        }
+        execBar.Resize += (_, _) => PlaceExec();
+        execBar.Controls.Add(_executeButton);
+        execBar.Controls.Add(execHint);
 
         // the action buttons live on their own line under the group caption,
         // right aligned with a small inset so nothing touches the border
@@ -278,7 +307,8 @@ internal sealed class MainForm : Form
         _output.BringToFront();
 
         grid.Controls.Add(_inputGroup, 0, 0);
-        grid.Controls.Add(_outputGroup, 0, 1);
+        grid.Controls.Add(execBar, 0, 1);
+        grid.Controls.Add(_outputGroup, 0, 2);
         _ioGrid = grid;
         Controls.Add(grid);
     }
@@ -326,7 +356,7 @@ internal sealed class MainForm : Form
             rows.Add(new Label
             {
                 Dock = DockStyle.Top,
-                Height = 16,
+                Height = 15,
                 Text = "Tip: the dice button rolls a fresh random value; on RSA it mints the key pair.",
                 ForeColor = SystemColors.GrayText,
             });
@@ -336,13 +366,16 @@ internal sealed class MainForm : Form
             _paramsGroup.Controls.Add(row);
 
         _paramsGroup.Visible = _method.Fields.Count > 0;
+        // rows + caption strip; the dock supplies the full width
+        _paramsGroup.Height = rows.Sum(r => r.Height) + 34;
         _paramsGroup.ResumeLayout(true);
+        _paramsGroup.PerformLayout();
     }
 
     private Control BuildFieldRow(FieldSpec spec)
     {
         var multiline = spec.Kind == FieldKind.Multiline;
-        var row = new Panel { Dock = DockStyle.Top, Height = multiline ? 78 : 26 };
+        var row = new Panel { Dock = DockStyle.Top, Height = multiline ? 64 : 26 };
 
         var label = new Label
         {
@@ -370,11 +403,16 @@ internal sealed class MainForm : Form
         var reserve = (spec.Generator != null ? DiceWidth : 0) + GlyphWidth;
         input.Bounds = new Rectangle(left, multiline ? 0 : 1,
             Math.Max(60, row.ClientSize.Width - left - reserve),
-            multiline ? 76 : 23);
+            multiline ? 62 : 23);
         switch (input)
         {
             case TextBox tb:
                 tb.PlaceholderText = spec.Placeholder;
+                if (multiline)
+                {
+                    tb.Multiline = true;
+                    tb.ScrollBars = ScrollBars.Vertical;
+                }
                 if (spec.Secret && !multiline) tb.UseSystemPasswordChar = true;
                 tb.TextChanged += (_, _) => Schedule();
                 break;
@@ -484,6 +522,8 @@ internal sealed class MainForm : Form
         _tips.SetToolTip(_blurb, method.Blurb + "\n\nClick for the full explanation.");
         _tips.SetToolTip(_wikiButton, method.WikiUrl);
         _wikiButton.Text = method.Category == "Defuse PHP" ? "GitHub" : "Wikipedia";
+        _inputGroup.Text = "Plaintext";
+        _outputGroup.Text = method.TwoWay ? "Ciphertext" : "Hash";
 
         if (method.TwoWay)
         {
@@ -549,6 +589,16 @@ internal sealed class MainForm : Form
                 string.Join("\n", results.Where(c => !c.Pass).Select(c => $"FAIL {c.Name}: {c.Detail}")),
                 $"Self-test: {failed} failures", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         ResetStatus();
+    }
+
+    /// <summary>Swaps the two text areas completely: their contents AND their
+    /// captions, so what was the ciphertext box becomes the plaintext box and
+    /// the next run decodes.</summary>
+    private void SwapSides()
+    {
+        (_input.Text, _output.Text) = (_output.Text, _input.Text);
+        (_inputGroup.Text, _outputGroup.Text) = (_outputGroup.Text, _inputGroup.Text);
+        Schedule();
     }
 
     private void CopyOutput()
@@ -705,6 +755,14 @@ internal sealed class MainForm : Form
                     defects.Add($"{_method.Id}: {groups[i].Text} and {groups[j].Text} group boxes intersect " +
                                 $"[{ScreenBounds(groups[i])}] vs [{ScreenBounds(groups[j])}]");
 
+        // inputs must be real, usable controls, not starved slivers; this is
+        // the guard for the autosize group box that collapsed every field
+        foreach (var (name, control) in _fieldControls)
+            if (control.Width < 100)
+                defects.Add($"{_method.Id}: field '{name}' input is only {control.Width}px wide");
+        if (_selector.Width < 200)
+            defects.Add($"{_method.Id}: selector is only {_selector.Width}px wide");
+
         // toolbar: nothing may overlap, nothing may bleed past the window
         var toolbarControls = _toolBar.Controls.Cast<Control>().Where(c => c.Visible).ToList();
         for (var i = 0; i < toolbarControls.Count; i++)
@@ -759,9 +817,19 @@ internal sealed class MainForm : Form
     {
         Text = text,
         AutoSize = true,
-        Padding = new Padding(6, 0, 6, 0),
+        // generous side padding and a fixed minimum height: labels never
+        // wrap, never truncate, buttons keep the classic 23px body
+        Padding = new Padding(10, 0, 10, 0),
+        MinimumSize = new Size(0, 23),
         Margin = new Padding(1),
     };
+
+    private static Button NewPrimaryButton(string text)
+    {
+        var button = NewButton(text);
+        button.Font = new Font(SystemFonts.MessageBoxFont, FontStyle.Bold);
+        return button;
+    }
 
     private static GroupBox NewGroup(string caption) => new()
     {
