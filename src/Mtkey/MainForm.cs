@@ -80,16 +80,18 @@ internal sealed class MainForm : Form
         BuildIoArea();
         BuildStatusBar();
 
-        // WinForms dock layout walks the children from the END of the
-        // collection inward: the highest index docks first. The visual order
-        // top to bottom is therefore the reverse of the index order, so pin
-        // it explicitly: menu, toolbar, blurb, parameters, io, status bar.
+        // dock layout walks children from the END of the collection inward:
+        // the highest index docks first. The visual order top to bottom is
+        // therefore the reverse of the index order, so pin it explicitly:
+        // menu, toolbar, blurb, parameters, io, status bar.
         Controls.SetChildIndex(_ioGrid, 0);
         Controls.SetChildIndex(_statusStrip, 1);
         Controls.SetChildIndex(_paramsGroup, 2);
         Controls.SetChildIndex(_blurbBar, 3);
         Controls.SetChildIndex(_toolBar, 4);
         Controls.SetChildIndex(_menu, 5);
+
+        _selector.Items = Registry.All.ToList();
 
         _selector.MethodPicked += m => SwitchMethod(m);
         _wikiButton.Click += (_, _) => OpenWiki();
@@ -130,7 +132,7 @@ internal sealed class MainForm : Form
         help.DropDownItems.Add(new ToolStripSeparator());
         help.DropDownItems.Add(new ToolStripMenuItem("&About MTKey...", null,
             (_, _) => MessageBox.Show(this,
-                "MTKey 1.0.3\nA cipher workbench: encode, decode, hash, sign, and learn.\n" +
+                "MTKey 1.0.4\nA cipher workbench: encode, decode, hash, sign, and learn.\n" +
                 $"{Registry.All.Count} methods. MIT licensed.\nhttps://github.com/eru123/mtkey",
                 "About MTKey", MessageBoxButtons.OK, MessageBoxIcon.Information)));
         menu.Items.Add(file);
@@ -151,12 +153,13 @@ internal sealed class MainForm : Form
         bar.Controls.Add(_oneWayLabel);
 
         // absolute placement on every resize; no anchors fighting manual math.
-        // Every control is centered vertically in the row.
+        // Every control is centered vertically in the row; the selector gets
+        // a small left inset so it does not hug the window edge.
         void Place()
         {
             var w = bar.ClientSize.Width;
             void Put(Control c, int x) => c.Location = new Point(x, Math.Max(0, (bar.ClientSize.Height - c.Height) / 2));
-            _selector.Bounds = new Rectangle(0, Math.Max(0, (bar.ClientSize.Height - 23) / 2), Math.Max(120, w - 430), 23);
+            _selector.Bounds = new Rectangle(8, Math.Max(0, (bar.ClientSize.Height - 23) / 2), Math.Max(120, w - 430 - 8), 23);
             Put(_wikiButton, w - 410);
             Put(_helpButton, w - 326);
             Put(_encodeRadio, w - 268);
@@ -586,6 +589,13 @@ internal sealed class MainForm : Form
         var method = Registry.Find(id);
         if (method != null) SwitchMethod(method);
     }
+
+    // probes for the automated ui check (--uicheck)
+    internal int SelectorItemCount => _selector.ItemCount;
+    internal string CurrentMethodId => _method.Id;
+    internal void FocusSelector() => _selector.FocusBox();
+    internal void SearchAndPick(string query, int arrowDowns = 0) =>
+        _selector.SimulateTypeAndPick(query, arrowDowns);
 
     /// <summary>Fills parameter fields before the window is shown; used by
     /// --demo and --render so screenshots show a working session.</summary>

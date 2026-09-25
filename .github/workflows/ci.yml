@@ -36,3 +36,6 @@ jobs:
 
       - name: Layout check every method
         run: dotnet run --project src/Mtkey -- --layoutcheck
+
+      - name: UI check (selector search and pick)
+        run: dotnet run --project src/Mtkey -- --uicheck

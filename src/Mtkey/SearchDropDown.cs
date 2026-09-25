@@ -60,6 +60,23 @@ internal sealed class SearchDropDown : Control
         }
     }
 
+    /// <summary>How many entries the picker knows about; a probe for the
+    /// automated ui check so an unwired selector never ships again.</summary>
+    public int ItemCount => _filtered.Count;
+
+    internal void FocusBox() => _box.Focus();
+
+    /// <summary>Drives the real filter-and-pick pipeline without keyboard
+    /// focus: types into the box, walks the list, picks. The automated ui
+    /// check uses this because SendKeys needs a foreground window.</summary>
+    internal void SimulateTypeAndPick(string query, int arrowDowns = 0)
+    {
+        _box.Text = query;   // TextChanged filters and opens the popup
+        for (var i = 0; i < arrowDowns; i++)
+            MoveList(1);
+        PickSelected();
+    }
+
     public CipherMethod? Selected { get; private set; }
 
     public void SetSelectionSilently(CipherMethod method)
@@ -97,7 +114,8 @@ internal sealed class SearchDropDown : Control
         host.Size = new Size(Math.Max(360, Width), Math.Min(400, Math.Max(1, _list.Items.Count) * _list.ItemHeight + 6));
         _list.SelectedIndex = Math.Max(0, _list.SelectedIndex);
         _popup.Show(this, new Point(0, Height + 1));
-        _list.Focus();
+        // keep focus on the text box so typing keeps filtering while the
+        // list is open; arrow keys and Enter are handled by the box already
     }
 
     private void OnBoxKeyDown(object? sender, KeyEventArgs e)

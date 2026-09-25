@@ -29,6 +29,7 @@ internal static class Program
             "--run" => RunHeadless(args[1..]),
             "--smoke" => RunSmoke(),
             "--layoutcheck" => RunLayoutCheck(),
+            "--uicheck" => RunUiCheck(),
             "--render" => Render(args[1..]),
             "--help" or "-h" or "-?" => PrintHelp(),
             _ => PrintHelp($"Unknown option {args[0]}."),
@@ -224,6 +225,44 @@ internal static class Program
             ? $"layout: all {Registry.All.Count} methods render without overlaps"
             : $"layout: {failures} method(s) with layout defects");
         return failures == 0 ? 0 : 1;
+    }
+
+    /// <summary>Drives the selector's real filter-and-pick pipeline: it must
+    /// know every method, a typed search must filter, and Enter must switch.
+    /// Exists because 1.0.2 shipped a selector nobody had wired up.</summary>
+    private static int RunUiCheck()
+    {
+        ApplicationConfiguration.Initialize();
+        var failures = new List<string>();
+        using (var form = new MainForm())
+        {
+            form.Show();
+            Application.DoEvents();
+
+            if (form.SelectorItemCount != Registry.All.Count)
+                failures.Add($"selector lists {form.SelectorItemCount} methods, expected {Registry.All.Count}");
+
+            form.SearchAndPick("sha2");
+            Application.DoEvents();
+            if (form.CurrentMethodId != "sha256")
+                failures.Add($"searching 'sha2' + Enter left method '{form.CurrentMethodId}'");
+
+            form.SearchAndPick("defuse", arrowDowns: 1);
+            Application.DoEvents();
+            if (form.CurrentMethodId != "defuse-password")
+                failures.Add($"arrow-down + Enter over 'defuse' left method '{form.CurrentMethodId}'");
+
+            form.SearchAndPick("zzzznope");
+            Application.DoEvents();
+            if (form.CurrentMethodId != "defuse-password")
+                failures.Add("a matchless search changed the method, which it must not");
+        }
+
+        foreach (var f in failures) Console.WriteLine($"UI {f}");
+        Console.WriteLine(failures.Count == 0
+            ? "ui: selector lists every method and search picks correctly"
+            : $"ui: {failures.Count} failure(s)");
+        return failures.Count == 0 ? 0 : 1;
     }
 
     private static int RunSmoke()
