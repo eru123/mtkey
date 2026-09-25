@@ -2,9 +2,9 @@ using Mtkey.Core;
 
 namespace Mtkey;
 
-/// <summary>A text box that filters a dropdown list as you type: type "b64",
-/// "defuse" or "sha2" and the list shrinks to the matches. Arrow keys walk the
-/// list, Enter or click picks, Esc closes.</summary>
+/// <summary>A classic combo-style text box that filters a dropdown list as you
+/// type: type "b64", "defuse" or "sha2" and the list shrinks to the matches.
+/// Arrow keys walk the list, Enter or click picks, Esc closes.</summary>
 internal sealed class SearchDropDown : Control
 {
     private readonly TextBox _box = new();
@@ -14,8 +14,8 @@ internal sealed class SearchDropDown : Control
     {
         BorderStyle = BorderStyle.None,
         IntegralHeight = false,
-        ItemHeight = 26,
-        Font = new Font("Segoe UI", 10.5f),
+        ItemHeight = 20,
+        Font = SystemFonts.MessageBoxFont,
     };
 
     private IReadOnlyList<CipherMethod> _items = Array.Empty<CipherMethod>();
@@ -26,18 +26,15 @@ internal sealed class SearchDropDown : Control
 
     public SearchDropDown()
     {
-        Height = 32;
+        Height = 23;
 
         _box.Dock = DockStyle.Fill;
-        _box.Font = new Font("Segoe UI", 11f);
-        _box.BorderStyle = BorderStyle.FixedSingle;
-        _box.PlaceholderText = "Search a cipher: try \"base64\", \"defuse\", \"sha2\", \"jwt\"...";
+        _box.Font = SystemFonts.MessageBoxFont;
+        _box.PlaceholderText = "Search a cipher: base64, defuse, sha2, jwt...";
 
         _chevron.Dock = DockStyle.Right;
-        _chevron.Width = 30;
+        _chevron.Width = 20;
         _chevron.Text = "▾";
-        _chevron.FlatStyle = FlatStyle.Flat;
-        _chevron.FlatAppearance.BorderSize = 0;
         _chevron.Cursor = Cursors.Hand;
 
         Controls.Add(_box);
@@ -69,7 +66,7 @@ internal sealed class SearchDropDown : Control
     {
         Selected = method;
         _suppress = true;
-        _box.Text = $"{method.Name}  ·  {method.Category}";
+        _box.Text = $"{method.Name}  -  {method.Category}";
         _suppress = false;
     }
 
@@ -78,13 +75,13 @@ internal sealed class SearchDropDown : Control
     private void Refilter(string text, bool show)
     {
         var query = text.Trim();
-        if (Selected != null && query == $"{Selected.Name}  ·  {Selected.Category}")
+        if (Selected != null && query == $"{Selected.Name}  -  {Selected.Category}")
             query = "";
         _filtered = (query.Length == 0 ? _items : Registry.Search(query)).ToList();
         _list.BeginUpdate();
         _list.Items.Clear();
         foreach (var m in _filtered)
-            _list.Items.Add($"{m.Name}  ·  {m.Category}");
+            _list.Items.Add($"{m.Name}  -  {m.Category}");
         _list.EndUpdate();
         if (_filtered.Count > 0)
             _list.SelectedIndex = 0;
@@ -97,9 +94,9 @@ internal sealed class SearchDropDown : Control
     private void ShowPopup()
     {
         var host = (ToolStripControlHost)_popup.Items[0]!;
-        host.Size = new Size(Math.Max(420, Width), Math.Min(420, Math.Max(1, _list.Items.Count) * _list.ItemHeight + 8));
+        host.Size = new Size(Math.Max(360, Width), Math.Min(400, Math.Max(1, _list.Items.Count) * _list.ItemHeight + 6));
         _list.SelectedIndex = Math.Max(0, _list.SelectedIndex);
-        _popup.Show(this, new Point(0, Height + 2));
+        _popup.Show(this, new Point(0, Height + 1));
         _list.Focus();
     }
 
