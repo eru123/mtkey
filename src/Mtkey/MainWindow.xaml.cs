@@ -214,8 +214,8 @@ public partial class MainWindow : Window
                     Margin = new Thickness(2, 2, 2, 2),
                     Text = spec.Default ?? "",
                 },
-                FieldKind.Multiline => NewMonoBox(multiline: true),
-                _ => spec.Secret ? NewPasswordBox() : NewMonoBox(multiline: false),
+            FieldKind.Multiline => NewMonoBox(multiline: true),
+            _ => NewMonoBox(multiline: false),
             };
             switch (input)
             {
@@ -223,10 +223,6 @@ public partial class MainWindow : Window
                     if (spec.Kind != FieldKind.Multiline && spec.Kind != FieldKind.Number)
                         tb.Text = spec.Default ?? "";
                     tb.TextChanged += (_, _) => Schedule();
-                    break;
-                case PasswordBox pb:
-                    pb.Password = spec.Default ?? "";
-                    pb.PasswordChanged += (_, _) => Schedule();
                     break;
                 case ComboBox combo:
                     if (spec.Default != null) combo.SelectedItem = spec.Default;
@@ -290,12 +286,6 @@ public partial class MainWindow : Window
         VerticalContentAlignment = multiline ? VerticalAlignment.Top : VerticalAlignment.Center,
     };
 
-    private static PasswordBox NewPasswordBox() => new()
-    {
-        Height = 24,
-        Margin = new Thickness(2, 2, 2, 2),
-    };
-
     private void Roll(string fieldName)
     {
         try
@@ -308,9 +298,6 @@ public partial class MainWindow : Window
                 {
                     case TextBox tb:
                         tb.Text = value;
-                        break;
-                    case PasswordBox pb:
-                        pb.Password = value;
                         break;
                     case ComboBox cb:
                         if (cb.Items.Contains(value)) cb.SelectedItem = value;
@@ -334,7 +321,6 @@ public partial class MainWindow : Window
             values[name] = control switch
             {
                 TextBox tb => tb.Text,
-                PasswordBox pb => pb.Password,
                 ComboBox cb => cb.SelectedItem?.ToString() ?? "",
                 _ => "",
             };
@@ -478,7 +464,7 @@ public partial class MainWindow : Window
     private void About_Click(object sender, RoutedEventArgs e)
     {
         MessageBox.Show(this,
-            "MTKey 1.0.8\nA cipher workbench: encode, decode, hash, sign, and learn.\n" +
+            "MTKey 1.0.9\nA cipher workbench: encode, decode, hash, sign, and learn.\n" +
             $"{Registry.All.Count} methods. MIT licensed.\nhttps://github.com/eru123/mtkey",
             "About MTKey", MessageBoxButton.OK, MessageBoxImage.Information);
     }
@@ -540,9 +526,6 @@ public partial class MainWindow : Window
             {
                 case TextBox tb:
                     tb.Text = value;
-                    break;
-                case PasswordBox pb:
-                    pb.Password = value;
                     break;
                 case ComboBox cb:
                     if (cb.Items.Contains(value)) cb.SelectedItem = value;
