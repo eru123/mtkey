@@ -1,68 +1,125 @@
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-@custom-variant dark (&:is(.dark *));
+/* MTKey design tokens — DESIGN.md §3, "The Instrument".
+   Dark graphite chassis is the base (:root); .light swaps to the paper lab
+   notebook palette. Components only ever use the mapped Tailwind tokens,
+   never raw colors. */
 
-/*
-  MTKey design tokens.
-  Dark-first neutral palette; the values are intentionally minimal so the UX
-  pass can refine them against DESIGN.md. Keep new colors as tokens here
-  rather than inline values in components.
-*/
+@custom-variant dark (&:not(.light *));
+
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  /* chassis — graphite */
+  --background: oklch(0.17 0.006 260);
+  --foreground: oklch(0.93 0.004 260);
+  --card: oklch(0.2 0.006 260);
+  --card-foreground: oklch(0.93 0.004 260);
+  --popover: oklch(0.21 0.006 260);
+  --popover-foreground: oklch(0.93 0.004 260);
+  --secondary: oklch(0.25 0.007 260);
+  --secondary-foreground: oklch(0.9 0.004 260);
+  --muted: oklch(0.24 0.006 260);
+  --muted-foreground: oklch(0.68 0.01 260);
+  --accent: oklch(0.27 0.008 260); /* hover surface, NOT the brand accent */
+  --accent-foreground: oklch(0.93 0.004 260);
+  --border: oklch(0.29 0.007 260);
+  --input: oklch(0.31 0.008 260);
+  --ring: oklch(0.8 0.13 185); /* trace cyan = --primary */
+
+  /* trace — the single brand accent */
+  --primary: oklch(0.8 0.13 185);
+  --primary-foreground: oklch(0.18 0.03 185);
+
+  /* lamps — semantic */
+  --destructive: oklch(0.7 0.19 25);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --destructive-solid: oklch(0.55 0.2 26); /* solid fills only */
+  --destructive-solid-foreground: oklch(0.985 0 0);
+  --destructive-soft: oklch(0.7 0.19 25 / 0.1);
+  --destructive-soft-foreground: oklch(0.75 0.16 25);
+
+  --warning: oklch(0.76 0.15 78); /* amber lamp */
+  --warning-foreground: oklch(0.24 0.05 78);
+  --warning-soft: oklch(0.76 0.15 78 / 0.1);
+  --warning-soft-foreground: oklch(0.85 0.12 82);
+
+  --success: oklch(0.72 0.15 155);
+  --success-foreground: oklch(0.2 0.04 155);
+  --success-soft: oklch(0.72 0.15 155 / 0.1);
+  --success-soft-foreground: oklch(0.8 0.13 155);
+
+  /* overlays */
+  --overlay-shadow: 0 8px 24px oklch(0 0 0 / 0.35);
+  --scrim: oklch(0 0 0 / 0.45);
+
+  /* shape */
+  --radius: 0.5rem; /* 8px — see radius table */
+
+  /* sidebar aliases (rail), keeps shadcn sidebar primitive usable */
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
-/* The workbench is dark-first; .dark mirrors the root palette for now. */
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+.light {
+  /* chassis — paper lab notebook */
+  --background: oklch(0.977 0.002 260);
+  --foreground: oklch(0.22 0.01 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.01 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.01 260);
+  --secondary: oklch(0.945 0.004 260);
+  --secondary-foreground: oklch(0.25 0.01 260);
+  --muted: oklch(0.955 0.003 260);
+  --muted-foreground: oklch(0.47 0.015 260);
+  --accent: oklch(0.93 0.008 240);
+  --accent-foreground: oklch(0.22 0.01 260);
+  --border: oklch(0.895 0.005 260);
+  --input: oklch(0.88 0.006 260);
+  --ring: oklch(0.5 0.1 195);
+
+  --primary: oklch(0.5 0.1 195);
+  --primary-foreground: oklch(0.985 0 0);
+
+  --destructive: oklch(0.5 0.19 26);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --destructive-solid: oklch(0.5 0.19 26);
+  --destructive-solid-foreground: oklch(0.985 0 0);
+  --destructive-soft: oklch(0.5 0.19 26 / 0.07);
+  --destructive-soft-foreground: oklch(0.48 0.17 26);
+
+  --warning: oklch(0.76 0.15 78);
+  --warning-foreground: oklch(0.24 0.05 78);
+  --warning-soft: oklch(0.76 0.15 78 / 0.12);
+  --warning-soft-foreground: oklch(0.42 0.1 70);
+
+  --success: oklch(0.72 0.15 155);
+  --success-foreground: oklch(0.2 0.04 155);
+  --success-soft: oklch(0.72 0.15 155 / 0.12);
+  --success-soft-foreground: oklch(0.4 0.11 155);
+
+  --overlay-shadow: 0 8px 24px oklch(0 0 0 / 0.12);
+  --scrim: oklch(0 0 0 / 0.3);
+
+  --sidebar: var(--background);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
 @theme inline {
-  --font-sans:
-    ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
-  --font-mono:
-    ui-monospace, 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo,
-    monospace;
-
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -79,23 +136,91 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-solid: var(--destructive-solid);
+  --color-destructive-solid-foreground: var(--destructive-solid-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-soft-foreground: var(--destructive-soft-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-soft-foreground: var(--warning-soft-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-success-soft-foreground: var(--success-soft-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-scrim: var(--scrim);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: 'Inter Variable', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
+
+  /* compact type scale (overrides Tailwind defaults) */
+  --text-2xs: 0.625rem; /* 10px  */
+  --text-2xs--line-height: 1.3;
+  --text-xs: 0.6875rem; /* 11px  */
+  --text-xs--line-height: 1.35;
+  --text-sm: 0.75rem; /* 12px  */
+  --text-sm--line-height: 1.45;
+  --text-base: 0.8125rem; /* 13px  — UI base */
+  --text-base--line-height: 1.5;
+  --text-lg: 0.875rem; /* 14px  */
+  --text-lg--line-height: 1.5;
+  --text-xl: 0.9375rem; /* 15px  — headings */
+  --text-xl--line-height: 1.35;
+  --text-2xl: 1.125rem; /* 18px  — learn dock H1 only */
+  --text-2xl--line-height: 1.3;
+
+  --radius-sm: calc(var(--radius) - 4px); /* 4px  badges, kbd, lamps    */
+  --radius-md: calc(var(--radius) - 2px); /* 6px  inputs, buttons, tabs */
+  --radius-lg: var(--radius); /* 8px  cards, dock, dialogs  */
+  --radius-xl: calc(var(--radius) + 4px); /* 12px command palette       */
+
+  --shadow-overlay: var(--overlay-shadow);
+}
+
+/* Crypto data voice: every input, output, key, slug and vector. */
+@utility text-mono {
+  font-family: var(--font-mono);
+  font-size: 0.78125rem; /* 12.5px */
+  line-height: 1.65;
+}
+
+/* Engraved faceplate labels: INPUT, OUTPUT, PARAMETERS, category names. */
+@utility text-engraved {
+  font-size: var(--text-xs);
+  line-height: var(--text-xs--line-height);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
 
-  html {
+  :root {
     color-scheme: dark;
+  }
+
+  .light {
+    color-scheme: light;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
   }
 
   body {
@@ -110,5 +235,23 @@
   kbd,
   samp {
     font-family: var(--font-mono);
+  }
+
+  /* Focus is never removed anywhere in the instrument. Elements that draw
+     their own ring (shadcn primitives) opt out via `outline-none`, which
+     lives in the utilities layer and wins over this base-layer rule. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
