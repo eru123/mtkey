@@ -151,6 +151,40 @@ describe('debounce and run sequence', () => {
     base64.process = original
   })
 
+  it('Ctrl+Enter bypasses the debounce without double-running', async () => {
+    vi.useFakeTimers()
+    const base64 = findMethod('base64')!
+    const original = base64.process
+    const spy = vi.fn(async (request: { input: string }) => {
+      void request
+      return { output: `ran:${request.input}` } as CipherResult
+    })
+    base64.process = spy
+
+    render(<App />)
+    fireEvent.change(screen.getByLabelText('Input'), {
+      target: { value: 'force me' },
+    })
+    // Run now, while the 120ms debounce is still pending.
+    fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true })
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(outputText()).toBe('ran:force me')
+
+    // The superseded debounce timer must not fire a second run.
+    await act(async () => {
+      vi.advanceTimersByTime(500)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(spy).toHaveBeenCalledTimes(1)
+    expect(outputText()).toBe('ran:force me')
+
+    base64.process = original
+  })
+
   it('a stale slow run cannot overwrite a newer fast result', async () => {
     vi.useFakeTimers()
     const base64 = findMethod('base64')!

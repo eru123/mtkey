@@ -46,6 +46,7 @@ export function BenchProvider({ children }: { children: ReactNode }) {
 
   const runSeq = useRef(0)
   const validationSeq = useRef(0)
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const announceState = useRef({ last: 0, timer: undefined as ReturnType<typeof setTimeout> | undefined })
   const statusNoteTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const runRef = useRef(run)
@@ -120,13 +121,15 @@ export function BenchProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (generating) return
     const delay = heavy ? 500 : 120
-    const timer = setTimeout(() => void execute(), delay)
-    return () => clearTimeout(timer)
+    debounceTimer.current = setTimeout(() => void execute(), delay)
+    return () => clearTimeout(debounceTimer.current)
   }, [execute, generating, heavy])
 
   const runNow = useCallback(() => {
     if (generating) return
-    runSeq.current += 1 // invalidate any pending debounced run
+    // Bypass the debounce: cancel the pending run, then run immediately.
+    clearTimeout(debounceTimer.current)
+    runSeq.current += 1 // invalidate any in-flight run from the old state
     void execute()
   }, [execute, generating])
 
