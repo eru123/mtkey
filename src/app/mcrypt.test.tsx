@@ -4,7 +4,7 @@
  * plus the registry/search chrome the rail and palette rely on. */
 import { describe, expect, it } from 'vitest'
 
-import { CipherError, findMethod, registry, searchMethods } from '@/core'
+import { CipherError, findMethod, generateForField, registry, searchMethods } from '@/core'
 import { CATEGORY_ICONS } from '@/app/lib'
 import mcryptVectorsJson from '../../tests/mcrypt-vectors.json'
 
@@ -150,6 +150,21 @@ describe('mcrypt key-length validation', () => {
     const blowfish = await method.validateFields!({ algo: 'blowfish', key: 'test', keyenc: 'Text (UTF-8)' })
     expect(blowfish.fields['key']?.ok).toBe(true)
     expect(blowfish.fields['key']?.message).toBe('4 bytes, valid for BLOWFISH')
+  })
+
+  it('the key dice rolls a key that validates under the default encoding', async () => {
+    const method = findMethod('mcrypt')!
+    const seeded = sessionFields()
+    expect(seeded['keyenc']).toBe('Hex')
+
+    const rolled = await generateForField(method, 'key', seeded)
+    const verdict = await method.validateFields!({
+      algo: 'rijndael-128',
+      key: rolled['key'],
+      keyenc: seeded['keyenc'],
+    })
+    expect(verdict.fields['key']?.ok, verdict.fields['key']?.message).toBe(true)
+    expect(verdict.fields['key']?.message).toBe('32 bytes, valid for RIJNDAEL-128 (AES)')
   })
 })
 

@@ -256,7 +256,9 @@ export const mcryptMethod: CipherMethod = defineMethod({
       label: 'Key encoding',
       kind: 'dropdown',
       options: KEY_ENCODINGS,
-      default: 'Text (UTF-8)',
+      // Hex like every other symmetric method, so the hex dice yields a
+      // valid key length out of the box instead of a 64-byte "text" key.
+      default: 'Hex',
     },
     {
       name: 'iv',
