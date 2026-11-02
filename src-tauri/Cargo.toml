@@ -1,6 +1,6 @@
 [package]
 name = "mtkey"
-version = "2.0.0"
+version = "2.1.0"
 description = "A cipher workbench: 39 ways to encode, decode, hash and sign"
 authors = ["Jericho <jericho@skiddph.com>"]
 license = "MIT"

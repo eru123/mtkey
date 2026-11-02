@@ -34,7 +34,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Kbd } from '@/components/app/Kbd'
 
-const RAIL_VERSION = 'MTKey 2.0.0'
+const RAIL_VERSION = 'MTKey 2.1.0'
 
 export function MethodRail({
   collapsed,

@@ -560,7 +560,7 @@ Rail order is fixed (simple → complex, canonical). Groups show engraved label 
 | 2 | Classical — `scroll` | Caesar, ROT13, Atbash, Vigenère, Rail Fence, Playfair, XOR |
 | 3 | Hash — `fingerprint` | MD5, SHA-1, SHA-256, SHA-384, SHA-512, SHA-3-256, HMAC-MD5, HMAC-SHA-1, HMAC-SHA-256, HMAC-SHA-512, CRC-32, PBKDF2 |
 | 4 | Modern — `lock-keyhole` | AES-256-GCM, AES-CBC, AES-ECB, DES, Triple DES, RSA Encrypt (OAEP), RSA Signature |
-| 5 | Defuse PHP — `plug` | Authenticated (key), With Password, Key Tool, Legacy v1 Decrypt |
+| 5 | PHP Interop — `plug` | Defuse Authenticated (key), With Password, Key Tool, Legacy v1 Decrypt, mcrypt (legacy PHP), Laravel Legacy Crypt |
 | 6 | Tokens — `ticket` | JWT, JWKS |
 
 - **Method ids** (slugs, used by status bar, `--run`, palette): `base64`, `base32`, `base58`, `hex`, `url`, `binary`, `morse`, `caesar`, `rot13`, `atbash`, `vigenere`, `rail-fence`, `playfair`, `xor`, `md5`, `sha1`, `sha256`, `sha384`, `sha512`, `sha3-256`, `hmac-md5`, `hmac-sha1`, `hmac-sha256`, `hmac-sha512`, `crc32`, `pbkdf2`, `aes-256-gcm`, `aes-cbc`, `aes-ecb`, `des`, `3des`, `rsa-encrypt`, `rsa-signature`, `defuse-key`, `defuse-password`, `defuse-keytool`, `defuse-legacy`, `jwt`, `jwks`.
@@ -575,5 +575,5 @@ Rail order is fixed (simple → complex, canonical). Groups show engraved label 
 
 ### Settings & self-test
 
-Settings is a popover from the rail footer gear (`Settings2`) and contains: Theme segmented control (Light / Dark / System, `Switch`-style rows 32px), "Run self-test" (`FlaskConical`), "Keyboard shortcuts" (`Keyboard`), version line "MTKey 2.0.0".
+Settings is a popover from the rail footer gear (`Settings2`) and contains: Theme segmented control (Light / Dark / System, `Switch`-style rows 32px), "Run self-test" (`FlaskConical`), "Keyboard shortcuts" (`Keyboard`), version line "MTKey 2.1.0".
 Self-test is a dialog (`max-w-lg`): summary header "38/38 passed in 812 ms" (or "37/38 — 1 failed"), a table-dense list (`h-7` rows, mono case names, `CircleCheck` green / `CircleX` red), and a Re-run button. **Hidden access**: the self-test pill in the status bar (`● 38/38 self-test`, clickable, `text-xs`) opens the same dialog — the instrument's lamp is the diagnostics switch.
