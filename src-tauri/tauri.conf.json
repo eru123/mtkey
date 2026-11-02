@@ -46,7 +46,7 @@
         ]
       }
     },
-    "macos": {
+    "macOS": {
       "minimumSystemVersion": "10.15"
     }
   }
