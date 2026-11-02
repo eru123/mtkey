@@ -173,6 +173,9 @@ async function jwtDecode(r: Parameters<CipherMethod['process']>[0]): Promise<Cip
     `Payload:\n${payloadJson}`
 
   const notes: string[] = [`Token algorithm: ${alg}`]
+  const selected = field(r, 'alg')
+  if (selected && selected !== alg && alg !== 'none')
+    notes.push(`The dropdown says ${selected} but the header says ${alg}; verification uses the header's own ${alg}.`)
 
   if (parts.length === 2 || parts[2].length === 0) {
     notes.push('This token is UNSIGNED (alg none / empty signature). Anyone could have written it.')
@@ -345,7 +348,7 @@ export const jwksMethod: CipherMethod = defineMethod({
 
 function rsaToJwkJson(fields: { n: string; e: string; d?: string; p?: string; q?: string; dp?: string; dq?: string; qi?: string }, kid: string): string {
   let j = `{"kty":"RSA"`
-  if (kid.length > 0) j += `,"kid":"${kid}"`
+  if (kid.length > 0) j += `,"kid":${JSON.stringify(kid)}`
   j += ',"use":"sig"'
   // RS256 is the usual pairing for verification keys; the hash choice is
   // independent of the key size, so we do not pretend otherwise.
