@@ -304,8 +304,17 @@ export const mcryptMethod: CipherMethod = defineMethod({
     let iv: Uint8Array = new Uint8Array(0)
     if (needsIv(mode)) {
       const ivText = field(r, 'iv').trim()
-      if (ivText.length === 0 && r.direction === 'encode') {
-        iv = randomBytes(algo.blockSize)
+      if (ivText.length === 0) {
+        if (r.direction === 'encode') {
+          iv = randomBytes(algo.blockSize)
+        } else {
+          // Decrypting against a random IV would just yield noise; say what
+          // is missing instead of letting the key decoder complain about
+          // empty input.
+          throw new CipherError(
+            `Decrypting with ${mode.toUpperCase()} needs the original IV: exactly ${algo.blockSize} bytes for ${algo.label}.`
+          )
+        }
       } else {
         iv = decodeKeyMaterial(ivText, field(r, 'ivenc'))
       }
