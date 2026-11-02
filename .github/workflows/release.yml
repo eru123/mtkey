@@ -44,4 +44,4 @@ jobs:
           releaseName: 'MTKey ${{ github.ref_name }}'
           releaseDraft: true
           prerelease: false
-          args: build ${{ matrix.args }} --bundles dmg
+          args: ${{ matrix.args }} --bundles dmg
