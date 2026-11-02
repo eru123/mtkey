@@ -1287,7 +1287,7 @@
         "plaintext_hex": "58",
         "ciphertext_hex": "2c",
         "decrypted_hex": "58",
-        "block_size": false
+        "block_size": 1
     },
     "130-arcfour-stream-k16-block": {
         "algorithm": "arcfour",
@@ -1297,7 +1297,7 @@
         "plaintext_hex": "30313233343536373839616263646566",
         "ciphertext_hex": "44a5f0d4247e3e4e3572b43151eb7b9a",
         "decrypted_hex": "30313233343536373839616263646566",
-        "block_size": false
+        "block_size": 1
     },
     "131-arcfour-stream-k16-long": {
         "algorithm": "arcfour",
@@ -1307,7 +1307,7 @@
         "plaintext_hex": "54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67",
         "ciphertext_hex": "20fca7c7613e611a666bb7215df870dcfd759068e4f55107211527c113feebadaeeeac46c9d71e29386035",
         "decrypted_hex": "54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f67",
-        "block_size": false
+        "block_size": 1
     },
     "132-arcfour-stream-k16-utf8": {
         "algorithm": "arcfour",
@@ -1317,7 +1317,7 @@
         "plaintext_hex": "726f756e6474726970206d6520f09f8eb2",
         "ciphertext_hex": "06fbb789743f7a107d6bb836127f817229",
         "decrypted_hex": "726f756e6474726970206d6520f09f8eb2",
-        "block_size": false
+        "block_size": 1
     },
     "rijndael-256-ecb-zero": {
         "algorithm": "rijndael-256",

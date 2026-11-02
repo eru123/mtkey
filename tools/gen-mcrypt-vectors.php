@@ -80,7 +80,8 @@ $cases = array();
 $index = 0;
 
 foreach ($algorithms as $algoName => $algoConst) {
-    $blockSize = mcrypt_get_block_size($algoConst, 'cbc');
+    // arcfour is a stream cipher; asking it for a block size fails loudly.
+    $blockSize = $algoName === 'arcfour' ? 1 : mcrypt_get_block_size($algoConst, 'cbc');
     foreach ($keys[$algoName] as $keyBitsLabel => $keyHex) {
         $key = pack('H*', $keyHex);
         foreach ($modes as $mode) {
