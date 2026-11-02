@@ -4,7 +4,7 @@
  * defuse/php-encryption library, and verifies a few known-answer constants
  * (like the jwt.io HS256 token) with PHP's own crypto.
  *
- * Usage: php tools/gen-vectors.php [path-to-library-src] > tests/Mtkey.Tests/vectors.json
+ * Usage: php tools/gen-vectors.php [path-to-library-src] > tests/vectors.json
  * Defaults to ../defuse-ref/src relative to this script.
  */
 
