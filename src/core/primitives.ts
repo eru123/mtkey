@@ -36,7 +36,8 @@ export function hex(bytes: Uint8Array): string {
 
 export function unhex(text: string): Uint8Array {
   const cleaned = text.replace(/[ \r\n\t]/g, '')
-  if (cleaned.length === 0 || cleaned.length % 2 !== 0)
+  if (cleaned.length === 0) throw new CipherError('Hex input is empty.')
+  if (cleaned.length % 2 !== 0)
     throw new CipherError('Hex input must have an even number of digits.')
   if (!/^[0-9a-fA-F]*$/.test(cleaned))
     throw new CipherError('Hex input contains characters other than 0-9 and a-f.')

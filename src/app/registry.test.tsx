@@ -325,6 +325,16 @@ describe('error paths raise CipherError, never crash', () => {
     ).rejects.toThrow('Got 2')
   })
 
+  it('an empty hex key says it is empty, not that the length is odd', async () => {
+    await expect(
+      findMethod('des')!.process({
+        direction: 'encode',
+        input: 'hello',
+        fields: { key: '', keyenc: 'Hex' },
+      })
+    ).rejects.toThrow('Hex input is empty.')
+  })
+
   it('tampered GCM ciphertext fails authentication', async () => {
     const method = findMethod('aes-gcm')!
     const fields = { key: KEY32, iv: NONCE12, keyenc: 'Hex', ivenc: 'Hex', out: 'Base64' }
