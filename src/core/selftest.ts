@@ -3,6 +3,7 @@
  * vectors come from tools/gen-vectors.php, which produces them with the
  * real PHP library. */
 import vectorsJson from '../../tests/vectors.json'
+import mcryptVectorsJson from '../../tests/mcrypt-vectors.json'
 import type { CipherRequest, CipherMethod, Direction } from './types'
 import { findMethod } from './registry'
 import * as P from './primitives'
@@ -297,6 +298,32 @@ export async function runSelfTest(): Promise<TestCase[]> {
   )
 
   // -------------------------------------------------------- defuse
+  // -------------------------------------------------------- mcrypt
+  const mcryptVectors = await mcryptCrossVectors()
+  check('mcrypt cross-language vectors (php 5.6)', mcryptVectors.pass, mcryptVectors.detail)
+
+  const lv = (mcryptVectorsJson as Record<string, unknown>)['laravel4_payload'] as {
+    key_hex: string
+    payload_b64: string
+  }
+  const lvDecode = await run(findMethod('laravel-crypt')!, 'decode', lv.payload_b64, {
+    key: lv.key_hex,
+    keyenc: 'Hex',
+    cipher: 'rijndael-128',
+  })
+  check('laravel legacy payload decrypts', lvDecode.output === 'hello from laravel four', lvDecode.output)
+  let lvTamper = false
+  try {
+    await run(findMethod('laravel-crypt')!, 'decode', lv.payload_b64.slice(0, -4) + 'AAAA', {
+      key: lv.key_hex,
+      keyenc: 'Hex',
+      cipher: 'rijndael-128',
+    })
+  } catch {
+    lvTamper = true
+  }
+  check('laravel legacy payload detects tampering', lvTamper)
+
   check('defuse key save/load roundtrip', defuseKeyRoundtrip())
   check('defuse encrypt/decrypt roundtrip', defuseEncryptRoundtrip())
   check('defuse password roundtrip', defusePasswordRoundtrip())
@@ -425,6 +452,53 @@ function defuseCrossVectors(): { pass: boolean; detail?: string } {
   } catch (e) {
     return { pass: false, detail: `vector file problem: ${e instanceof Error ? e.message : String(e)}` }
   }
+}
+
+async function mcryptCrossVectors(): Promise<{ pass: boolean; detail?: string }> {
+  const method = findMethod('mcrypt')!
+  const notes: string[] = []
+  let total = 0
+  for (const [id, raw] of Object.entries(mcryptVectorsJson as Record<string, unknown>)) {
+    if (id === 'laravel4_payload') continue
+    const v = raw as {
+      algorithm: string
+      mode: string
+      key_hex: string
+      iv_hex: string
+      plaintext_hex: string
+      ciphertext_hex: string
+      decrypted_hex: string
+    }
+    total++
+    const fields: Record<string, string> = {
+      algo: v.algorithm,
+      mode: v.mode,
+      key: v.key_hex,
+      keyenc: 'Hex',
+      iv: v.iv_hex ?? '',
+      ivenc: 'Hex',
+      out: 'Hex',
+    }
+    try {
+      const plaintext = P.utf8Decode(P.unhex(v.plaintext_hex))
+      const enc = await method.process({ direction: 'encode', input: plaintext, fields })
+      if (enc.output.toLowerCase() !== v.ciphertext_hex.toLowerCase()) {
+        notes.push(`${id}: encrypt mismatch`)
+        continue
+      }
+      const dec = await method.process({ direction: 'decode', input: v.ciphertext_hex, fields })
+      const stripped = P.utf8Decode(P.unhex(v.decrypted_hex || v.plaintext_hex))
+      let end = stripped.length
+      while (end > 0 && stripped.charCodeAt(end - 1) === 0) end--
+      const want = stripped.slice(0, end)
+      if (dec.output !== want) notes.push(`${id}: decrypt mismatch`)
+    } catch (e) {
+      notes.push(`${id}: threw ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+  return notes.length === 0
+    ? { pass: true }
+    : { pass: false, detail: `of ${total} cases: ` + notes.join('; ') }
 }
 
 /** Format the failure notes for display. */

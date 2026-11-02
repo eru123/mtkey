@@ -22,7 +22,7 @@ export const CATEGORY_ICONS: Record<Category, LucideIcon> = {
   Classical: Scroll,
   Hash: Fingerprint,
   Modern: LockKeyhole,
-  'Defuse PHP': Plug,
+  'PHP Interop': Plug,
   Tokens: Ticket,
 }
 

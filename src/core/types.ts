@@ -8,7 +8,7 @@ export type Category =
   | 'Classical'
   | 'Hash'
   | 'Modern'
-  | 'Defuse PHP'
+  | 'PHP Interop'
   | 'Tokens'
 
 export type FieldKind = 'text' | 'multiline' | 'dropdown' | 'number'

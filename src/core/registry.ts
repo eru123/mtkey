@@ -7,6 +7,7 @@ import { hashMethods } from './hash'
 import { modernMethods } from './modern'
 import { defuseMethods } from './defuseMethods'
 import { tokenMethods } from './tokens'
+import { mcryptMethods } from './mcrypt'
 import { newKeyAscii } from './defuse'
 import {
   randomHex,
@@ -23,6 +24,7 @@ export const registry: readonly CipherMethod[] = [
   ...hashMethods,
   ...modernMethods,
   ...defuseMethods,
+  ...mcryptMethods,
   ...tokenMethods,
 ]
 
@@ -31,7 +33,7 @@ export const CATEGORY_ORDER: readonly string[] = [
   'Classical',
   'Hash',
   'Modern',
-  'Defuse PHP',
+  'PHP Interop',
   'Tokens',
 ]
 

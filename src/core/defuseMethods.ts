@@ -16,7 +16,7 @@ import * as defuse from './defuse'
 export const defuseKeyMethod: CipherMethod = defineMethod({
   id: 'defuse-encrypt',
   name: 'Defuse Authenticated (key)',
-  category: 'Defuse PHP',
+  category: 'PHP Interop',
   blurb: 'defuse/php-encryption v2 with a stored key. Ciphertexts start with def502.',
   learn:
     'This is a byte-for-byte port of Defuse\\Crypto\\Crypto::encrypt, the authenticated ' +
@@ -68,7 +68,7 @@ export const defuseKeyMethod: CipherMethod = defineMethod({
 export const defusePasswordMethod: CipherMethod = defineMethod({
   id: 'defuse-password',
   name: 'Defuse With Password',
-  category: 'Defuse PHP',
+  category: 'PHP Interop',
   blurb: 'Same format, but the key is stretched from a human password.',
   learn:
     'Crypto::encryptWithPassword runs the password through SHA-256, then PBKDF2-HMAC-SHA256 ' +
@@ -106,7 +106,7 @@ export const defusePasswordMethod: CipherMethod = defineMethod({
 export const defuseKeyToolMethod: CipherMethod = defineMethod({
   id: 'defuse-key',
   name: 'Defuse Key Tool',
-  category: 'Defuse PHP',
+  category: 'PHP Interop',
   blurb: 'Generate, protect and unlock def00000 keys, including def10000 password-wrapped ones.',
   learn:
     'The PHP library stores keys as hex with a built-in SHA-256 checksum (def00000...). ' +
@@ -186,7 +186,7 @@ export const defuseKeyToolMethod: CipherMethod = defineMethod({
 export const defuseLegacyMethod: CipherMethod = defineMethod({
   id: 'defuse-legacy',
   name: 'Defuse v1 (legacy decrypt)',
-  category: 'Defuse PHP',
+  category: 'PHP Interop',
   blurb: 'Reads ciphertext from version 1.x of the library. Decrypt only.',
   learn:
     'Version 1 of defuse/php-encryption used AES-128-CBC with HMAC-SHA256 and put the ' +

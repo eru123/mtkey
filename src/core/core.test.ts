@@ -15,8 +15,8 @@ describe('self-test suite', () => {
     30_000
   )
 
-  it('ships 39 methods across 6 categories', () => {
-    expect(registry.length).toBe(39)
+  it('ships 41 methods across 6 categories', () => {
+    expect(registry.length).toBe(41)
     expect(new Set(registry.map((m) => m.category)).size).toBe(6)
   })
 })

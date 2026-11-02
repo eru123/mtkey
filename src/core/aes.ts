@@ -143,11 +143,11 @@ function blockRun(Cls: DesBlockCipher, type: 'encrypt' | 'decrypt', key: Uint8Ar
   return Uint8Array.from([...c.update(data), ...c.final()])
 }
 
-function desBlock(key: Uint8Array, data: Uint8Array, decrypt: boolean): Uint8Array {
+export function desBlock(key: Uint8Array, data: Uint8Array, decrypt: boolean): Uint8Array {
   return blockRun(DES, decrypt ? 'decrypt' : 'encrypt', key, data)
 }
 
-function edeBlock(key: Uint8Array, data: Uint8Array, decrypt: boolean): Uint8Array {
+export function edeBlock(key: Uint8Array, data: Uint8Array, decrypt: boolean): Uint8Array {
   // des.js EDE insists on 24 bytes; .NET allowed two-key 3DES (k1 k2 k1).
   const expanded = key.length === 16 ? Uint8Array.from([...key, ...key.subarray(0, 8)]) : key
   return blockRun(EDE, decrypt ? 'decrypt' : 'encrypt', expanded, data)
