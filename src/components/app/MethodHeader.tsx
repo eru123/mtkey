@@ -8,6 +8,7 @@ import { cn } from 'cn'
 import type { Direction } from '@/core'
 
 import { useAppStore } from '@/app/store-context'
+import { openExternal } from '@/app/open-external'
 import { CATEGORY_ICONS, lockedDirection } from '@/app/lib'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -90,7 +91,7 @@ export function MethodHeader() {
               variant="ghost"
               size="icon-sm"
               className="size-7"
-              onClick={() => window.open(method.wikiUrl, '_blank')}
+              onClick={() => void openExternal(method.wikiUrl)}
               aria-label={`Read about ${method.name} on Wikipedia (opens in your browser)`}
             >
               <ExternalLink className="size-3.5" />

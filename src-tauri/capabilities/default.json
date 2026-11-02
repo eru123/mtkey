@@ -1,7 +1,22 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Main window capability. Near-zero permissions: MTKey runs offline with no plugins; the only allowance is setting the window title so it can follow the selected method.",
-  "windows": ["main"],
-  "permissions": ["core:window:allow-set-title"]
+  "description": "Main window capability. Near-zero permissions: setting the window title, and the opener plugin restricted to Wikipedia and the defuse/php-encryption repository, the only external hosts the Learn panel links to.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:window:allow-set-title",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://en.wikipedia.org/*"
+        },
+        {
+          "url": "https://github.com/defuse/*"
+        }
+      ]
+    }
+  ]
 }

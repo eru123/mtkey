@@ -6,6 +6,7 @@ import { ExternalLink, X } from 'lucide-react'
 import { cn } from 'cn'
 
 import { useAppStore } from '@/app/store-context'
+import { openExternal } from '@/app/open-external'
 import { usePrefersReducedMotion } from '@/app/hooks'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -85,7 +86,7 @@ function LearnDock({ closing }: { closing: boolean }) {
         <Button
           variant="ghost"
           className="h-7 gap-1.5 px-2 text-base"
-          onClick={() => window.open(method.wikiUrl, '_blank')}
+          onClick={() => void openExternal(method.wikiUrl)}
         >
           Read on Wikipedia
           <ExternalLink className="size-3.5" />

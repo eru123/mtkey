@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'; base-uri 'self'; form-action 'self'"
     }
   },
   "bundle": {
@@ -37,11 +37,13 @@
       "icons/icon.ico"
     ],
     "category": "DeveloperTool",
-    "shortDescription": "A cipher workbench: 38 ways to encode, decode, hash and sign",
-    "longDescription": "MTKey is a cipher workbench: 38 ways to encode, decode, hash and sign text. Offline-first, zero-permission, cross-platform.",
+    "shortDescription": "A cipher workbench: 39 ways to encode, decode, hash and sign",
+    "longDescription": "MTKey is a cipher workbench: 39 ways to encode, decode, hash and sign text. Offline-first, minimal-permission, cross-platform.",
     "windows": {
       "nsis": {
-        "languages": ["English"]
+        "languages": [
+          "English"
+        ]
       }
     },
     "macos": {
