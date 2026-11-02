@@ -1,0 +1,22 @@
+# build output
+dist
+coverage
+src-tauri/target
+src-tauri/gen
+src-tauri/icons
+
+# lockfiles and generated data
+pnpm-lock.yaml
+tests/vectors.json
+
+# kept as-is (rewritten by later passes)
+README.md
+LICENSE
+DESIGN.md
+
+# vendored reference sources
+defuse-ref
+
+# misc
+node_modules
+*.local
