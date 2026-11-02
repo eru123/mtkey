@@ -84,6 +84,22 @@ const ROUNDTRIP_CASES: readonly RoundtripCase[] = [
     input: 'open sesame please',
     fields: () => ({ password: 'correct horse battery staple' }),
   },
+  {
+    id: 'mcrypt',
+    fields: () => ({
+      algo: 'rijndael-128',
+      mode: 'cbc',
+      key: KEY32,
+      keyenc: 'Hex',
+      iv: IV16,
+      ivenc: 'Hex',
+      out: 'Base64',
+    }),
+  },
+  {
+    id: 'laravel-crypt',
+    fields: () => ({ key: KEY32, keyenc: 'Hex', cipher: 'rijndael-128' }),
+  },
 ]
 
 describe('registry roundtrips through the session shape', () => {
@@ -118,7 +134,7 @@ describe('registry roundtrips through the session shape', () => {
     ])
     const twoWay = registry.filter((m) => m.twoWay).map((m) => m.id)
     expect(twoWay.every((id) => covered.has(id))).toBe(true)
-    expect(twoWay).toHaveLength(26)
+    expect(twoWay).toHaveLength(28)
   })
 
   it('rsa encrypt/decrypt roundtrips with the dice-generated pair', async () => {
@@ -253,8 +269,8 @@ describe('one-way methods', () => {
     'defuse-legacy',
   ]
 
-  it('registry has 39 methods, exactly 13 of them one-way', () => {
-    expect(registry).toHaveLength(39)
+  it('registry has 41 methods, exactly 13 of them one-way', () => {
+    expect(registry).toHaveLength(41)
     expect(registry.filter((m) => !m.twoWay).map((m) => m.id)).toEqual(ONE_WAY_IDS)
   })
 
